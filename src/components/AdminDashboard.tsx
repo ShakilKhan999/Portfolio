@@ -1,0 +1,998 @@
+import React, { useMemo, useState } from 'react'
+import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
+import { X, LogOut, Plus, Edit2, Trash2, Check, XCircle } from 'lucide-react'
+import { useAppSelector } from '../hooks/useAppSelector'
+import { useAppDispatch } from '../hooks/useAppDispatch'
+import type { RootState } from '../store'
+import { auth, db, storage } from '../config/firebase'
+import { loginSuccess, loginError, logout as logoutAction, setLoading as setAuthLoading } from '../store/slices/authSlice'
+import { ContactMessage } from '../store/slices/contactSlice'
+import { CaseStudy, Project, ResearchNote, Skill } from '../store/slices/portfolioSlice'
+
+interface AdminDashboardProps {
+  onClose: () => void
+}
+
+interface ProjectFormState {
+  id: string
+  title: string
+  description: string
+  image: string
+  link: string
+  tech: string
+  appStore: string
+  playStore: string
+  githubLink: string
+  featured: boolean
+}
+
+interface CaseStudyFormState {
+  id: string
+  title: string
+  client: string
+  challenge: string
+  solution: string
+  impact: string
+  image: string
+}
+
+interface SkillFormState {
+  id: string
+  title: string
+  description: string
+  icon: string
+}
+
+interface NoteFormState {
+  id: string
+  title: string
+  summary: string
+  link: string
+  image: string
+  createdAt?: number
+}
+
+const emptyProjectForm: ProjectFormState = {
+  id: '',
+  title: '',
+  description: '',
+  image: '',
+  link: '',
+  tech: '',
+  appStore: '',
+  playStore: '',
+  githubLink: '',
+  featured: false,
+}
+
+const emptyCaseStudyForm: CaseStudyFormState = {
+  id: '',
+  title: '',
+  client: '',
+  challenge: '',
+  solution: '',
+  impact: '',
+  image: '',
+}
+
+const emptySkillForm: SkillFormState = {
+  id: '',
+  title: '',
+  description: '',
+  icon: 'code',
+}
+
+const emptyNoteForm: NoteFormState = {
+  id: '',
+  title: '',
+  summary: '',
+  link: '',
+  image: '',
+  createdAt: Date.now(),
+}
+
+const sanitizeFileName = (name: string) =>
+  name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, '-')
+
+const uploadImageToStorage = async (file: File, folder: string) => {
+  const fileRef = ref(storage, `${folder}/${Date.now()}-${sanitizeFileName(file.name)}`)
+  await uploadBytes(fileRef, file, { contentType: file.type })
+  return getDownloadURL(fileRef)
+}
+
+export default function AdminDashboard({ onClose }: AdminDashboardProps) {
+  const dispatch = useAppDispatch()
+  const isDarkMode = useAppSelector((state: RootState) => state.ui.isDarkMode)
+  const authState = useAppSelector((state: RootState) => state.auth)
+  const projects = useAppSelector((state: RootState) => state.portfolio.projects)
+  const caseStudies = useAppSelector((state: RootState) => state.portfolio.caseStudies)
+  const skills = useAppSelector((state: RootState) => state.portfolio.skills)
+  const notes = useAppSelector((state: RootState) => state.portfolio.notes)
+  const contactMessages = useAppSelector((state: RootState) => state.contact.messages)
+
+  const unreadMessagesCount = useMemo(
+    () => contactMessages.filter((message: ContactMessage) => !message.read).length,
+    [contactMessages]
+  )
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'caseStudies' | 'skills' | 'notes' | 'messages'>('overview')
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+
+  const [projectFormState, setProjectFormState] = useState<'hidden' | 'create' | 'edit'>('hidden')
+  const [projectForm, setProjectForm] = useState<ProjectFormState>(emptyProjectForm)
+  const [projectSaving, setProjectSaving] = useState(false)
+  const [projectImageUploading, setProjectImageUploading] = useState(false)
+
+  const [caseStudyFormState, setCaseStudyFormState] = useState<'hidden' | 'create' | 'edit'>('hidden')
+  const [caseStudyForm, setCaseStudyForm] = useState<CaseStudyFormState>(emptyCaseStudyForm)
+  const [caseStudySaving, setCaseStudySaving] = useState(false)
+  const [caseStudyImageUploading, setCaseStudyImageUploading] = useState(false)
+
+  const [skillFormState, setSkillFormState] = useState<'hidden' | 'create' | 'edit'>('hidden')
+  const [skillForm, setSkillForm] = useState<SkillFormState>(emptySkillForm)
+  const [skillSaving, setSkillSaving] = useState(false)
+
+  const [noteFormState, setNoteFormState] = useState<'hidden' | 'create' | 'edit'>('hidden')
+  const [noteForm, setNoteForm] = useState<NoteFormState>(emptyNoteForm)
+  const [noteSaving, setNoteSaving] = useState(false)
+  const [noteImageUploading, setNoteImageUploading] = useState(false)
+
+  const inputClasses = isDarkMode
+    ? 'w-full px-4 py-2 rounded-lg border border-gray-800 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-white'
+    : 'w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-black focus:outline-none focus:ring-2 focus:ring-black'
+
+  const cardClasses = isDarkMode ? 'border border-gray-800 bg-gray-900/40' : 'border border-gray-200 bg-gray-50'
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    folder: string,
+    setUploading: (value: boolean) => void,
+    onUrl: (url: string) => void
+  ) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const url = await uploadImageToStorage(file, folder)
+      onUrl(url)
+    } catch (error) {
+      console.error(error)
+      alert('Failed to upload image. Please try again.')
+    } finally {
+      setUploading(false)
+      event.target.value = ''
+    }
+  }
+
+  const handleProjectImageSelect = (event: React.ChangeEvent<HTMLInputElement>) =>
+    handleFileUpload(event, 'project-images', setProjectImageUploading, (url) =>
+      setProjectForm((prev) => ({ ...prev, image: url }))
+    )
+
+  const handleCaseStudyImageSelect = (event: React.ChangeEvent<HTMLInputElement>) =>
+    handleFileUpload(event, 'case-study-images', setCaseStudyImageUploading, (url) =>
+      setCaseStudyForm((prev) => ({ ...prev, image: url }))
+    )
+
+  const handleNoteImageSelect = (event: React.ChangeEvent<HTMLInputElement>) =>
+    handleFileUpload(event, 'note-images', setNoteImageUploading, (url) =>
+      setNoteForm((prev) => ({ ...prev, image: url }))
+    )
+
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault()
+    dispatch(setAuthLoading(true))
+    try {
+      const credentials = await signInWithEmailAndPassword(auth, loginEmail, loginPassword)
+      dispatch(loginSuccess({ uid: credentials.user.uid, email: credentials.user.email ?? loginEmail }))
+      setLoginEmail('')
+      setLoginPassword('')
+    } catch (error: any) {
+      console.error(error)
+      dispatch(loginError(error.message))
+      alert('Login failed. Double-check your credentials and try again.')
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth)
+    } catch (error) {
+      console.error(error)
+      alert('Unable to log out right now. Please try again in a moment.')
+    } finally {
+      dispatch(logoutAction())
+    }
+  }
+
+  const resetProjectForm = () => {
+    setProjectForm({ ...emptyProjectForm })
+    setProjectFormState('hidden')
+  }
+
+  const openProjectForm = (mode: 'create' | 'edit', project?: Project) => {
+    if (mode === 'edit' && project) {
+      setProjectForm({
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        image: project.image,
+        link: project.link,
+        tech: project.tech.join(', '),
+        appStore: project.appStore ?? '',
+        playStore: project.playStore ?? '',
+        githubLink: project.githubLink ?? '',
+        featured: project.featured,
+      })
+    } else {
+      setProjectForm({ ...emptyProjectForm })
+    }
+    setProjectFormState(mode)
+  }
+
+  const upsertProject = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!projectForm.title.trim()) {
+      alert('Title is required')
+      return
+    }
+    setProjectSaving(true)
+    try {
+      const payload: Record<string, unknown> = {
+        title: projectForm.title.trim(),
+        description: projectForm.description.trim(),
+        image: projectForm.image.trim(),
+        link: projectForm.link.trim(),
+        tech: projectForm.tech
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+        featured: projectForm.featured,
+      }
+
+      const optionalLinks = {
+        appStore: projectForm.appStore.trim(),
+        playStore: projectForm.playStore.trim(),
+        githubLink: projectForm.githubLink.trim(),
+      }
+
+      Object.entries(optionalLinks).forEach(([key, value]) => {
+        if (value) {
+          payload[key] = value
+        }
+      })
+      if (projectFormState === 'edit' && projectForm.id) {
+        await updateDoc(doc(db, 'projects', projectForm.id), payload)
+      } else {
+        await addDoc(collection(db, 'projects'), payload)
+      }
+      resetProjectForm()
+    } catch (error) {
+      console.error(error)
+      alert('Unable to save the project right now.')
+    } finally {
+      setProjectSaving(false)
+    }
+  }
+
+  const removeProject = async (id: string) => {
+    if (!window.confirm('Delete this project?')) return
+    try {
+      await deleteDoc(doc(db, 'projects', id))
+    } catch (error) {
+      console.error(error)
+      alert('Failed to delete project')
+    }
+  }
+
+  const resetCaseStudyForm = () => {
+    setCaseStudyForm({ ...emptyCaseStudyForm })
+    setCaseStudyFormState('hidden')
+  }
+
+  const openCaseStudyForm = (mode: 'create' | 'edit', study?: CaseStudy) => {
+    if (mode === 'edit' && study) {
+      setCaseStudyForm({
+        id: study.id,
+        title: study.title,
+        client: study.client,
+        challenge: study.challenge,
+        solution: study.solution,
+        impact: study.impact,
+        image: study.image,
+      })
+    } else {
+      setCaseStudyForm({ ...emptyCaseStudyForm })
+    }
+    setCaseStudyFormState(mode)
+  }
+
+  const upsertCaseStudy = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!caseStudyForm.title.trim()) {
+      alert('Title is required')
+      return
+    }
+    setCaseStudySaving(true)
+    try {
+      const payload = {
+        title: caseStudyForm.title.trim(),
+        client: caseStudyForm.client.trim(),
+        challenge: caseStudyForm.challenge.trim(),
+        solution: caseStudyForm.solution.trim(),
+        impact: caseStudyForm.impact.trim(),
+        image: caseStudyForm.image.trim(),
+      }
+      if (caseStudyFormState === 'edit' && caseStudyForm.id) {
+        await updateDoc(doc(db, 'caseStudies', caseStudyForm.id), payload)
+      } else {
+        await addDoc(collection(db, 'caseStudies'), payload)
+      }
+      resetCaseStudyForm()
+    } catch (error) {
+      console.error(error)
+      alert('Unable to save the case study.')
+    } finally {
+      setCaseStudySaving(false)
+    }
+  }
+
+  const removeCaseStudy = async (id: string) => {
+    if (!window.confirm('Delete this case study?')) return
+    try {
+      await deleteDoc(doc(db, 'caseStudies', id))
+    } catch (error) {
+      console.error(error)
+      alert('Failed to delete case study')
+    }
+  }
+
+  const resetSkillForm = () => {
+    setSkillForm({ ...emptySkillForm })
+    setSkillFormState('hidden')
+  }
+
+  const openSkillForm = (mode: 'create' | 'edit', skill?: Skill) => {
+    if (mode === 'edit' && skill) {
+      setSkillForm({ id: skill.id, title: skill.title, description: skill.description, icon: skill.icon })
+    } else {
+      setSkillForm({ ...emptySkillForm })
+    }
+    setSkillFormState(mode)
+  }
+
+  const upsertSkill = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!skillForm.title.trim()) {
+      alert('Skill title is required')
+      return
+    }
+    setSkillSaving(true)
+    try {
+      const payload = {
+        title: skillForm.title.trim(),
+        description: skillForm.description.trim(),
+        icon: skillForm.icon.trim() || 'code',
+      }
+      if (skillFormState === 'edit' && skillForm.id) {
+        await updateDoc(doc(db, 'skills', skillForm.id), payload)
+      } else {
+        await addDoc(collection(db, 'skills'), payload)
+      }
+      resetSkillForm()
+    } catch (error) {
+      console.error(error)
+      alert('Unable to save the skill')
+    } finally {
+      setSkillSaving(false)
+    }
+  }
+
+  const removeSkill = async (id: string) => {
+    if (!window.confirm('Delete this skill?')) return
+    try {
+      await deleteDoc(doc(db, 'skills', id))
+    } catch (error) {
+      console.error(error)
+      alert('Failed to delete skill')
+    }
+  }
+
+  const resetNoteForm = () => {
+    setNoteForm({ ...emptyNoteForm, createdAt: Date.now() })
+    setNoteFormState('hidden')
+  }
+
+  const openNoteForm = (mode: 'create' | 'edit', note?: ResearchNote) => {
+    if (mode === 'edit' && note) {
+      setNoteForm({
+        id: note.id,
+        title: note.title,
+        summary: note.summary,
+        link: note.link ?? '',
+        image: note.image ?? '',
+        createdAt: note.createdAt,
+      })
+    } else {
+      setNoteForm({ ...emptyNoteForm, createdAt: Date.now() })
+    }
+    setNoteFormState(mode)
+  }
+
+  const upsertNote = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!noteForm.title.trim()) {
+      alert('Note title is required')
+      return
+    }
+    setNoteSaving(true)
+    try {
+      const payload = {
+        title: noteForm.title.trim(),
+        summary: noteForm.summary.trim(),
+        link: noteForm.link.trim() || undefined,
+        image: noteForm.image.trim() || undefined,
+        createdAt: noteFormState === 'edit' ? noteForm.createdAt ?? Date.now() : Date.now(),
+      }
+      if (noteFormState === 'edit' && noteForm.id) {
+        await updateDoc(doc(db, 'notes', noteForm.id), payload)
+      } else {
+        await addDoc(collection(db, 'notes'), payload)
+      }
+      resetNoteForm()
+    } catch (error) {
+      console.error(error)
+      alert('Unable to save the note')
+    } finally {
+      setNoteSaving(false)
+    }
+  }
+
+  const removeNote = async (id: string) => {
+    if (!window.confirm('Delete this note?')) return
+    try {
+      await deleteDoc(doc(db, 'notes', id))
+    } catch (error) {
+      console.error(error)
+      alert('Failed to delete note')
+    }
+  }
+
+  const updateMessageStatus = async (messageId: string, read: boolean) => {
+    try {
+      await updateDoc(doc(db, 'messages', messageId), { read })
+    } catch (error) {
+      console.error(error)
+      alert('Failed to update message state')
+    }
+  }
+
+  const removeMessage = async (messageId: string) => {
+    if (!window.confirm('Delete this message?')) return
+    try {
+      await deleteDoc(doc(db, 'messages', messageId))
+    } catch (error) {
+      console.error(error)
+      alert('Failed to delete message')
+    }
+  }
+
+  if (!authState.isAuthenticated) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center px-6 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
+        <div className={`w-full max-w-md rounded-2xl p-8 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50 border border-gray-200'}`}>
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-2xl font-bold">Admin Login</h1>
+            <button onClick={onClose} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+              <X size={20} />
+            </button>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Email</label>
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(event) => setLoginEmail(event.target.value)}
+                className={inputClasses}
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Password</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(event) => setLoginPassword(event.target.value)}
+                className={inputClasses}
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className={`w-full px-4 py-2 rounded-lg transition-all ${
+                isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'
+              }`}
+            >
+              {authState.loading ? 'Signing in…' : 'Login'}
+            </button>
+            {authState.error && <p className="text-sm text-red-500">{authState.error}</p>}
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-black'}`}>
+      <div className={`border-b px-6 py-4 flex justify-between items-center ${isDarkMode ? 'border-gray-800 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <div className="flex gap-3">
+          <button
+            onClick={handleLogout}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${
+              isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
+            }`}
+          >
+            <LogOut size={16} /> Logout
+          </button>
+          <button
+            onClick={onClose}
+            className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+          >
+            <X size={20} />
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
+        <div className="flex gap-4 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
+          {['overview', 'projects', 'caseStudies', 'skills', 'notes', 'messages'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab as typeof activeTab)}
+              className={`px-4 py-2 border-b-2 transition-all capitalize ${
+                activeTab === tab
+                  ? isDarkMode
+                    ? 'border-white text-white'
+                    : 'border-black text-black'
+                  : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'overview' && (
+          <div className="grid md:grid-cols-4 gap-4">
+            <div className={`p-5 rounded-2xl ${cardClasses}`}>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Projects</p>
+              <p className="text-3xl font-semibold mt-1">{projects.length}</p>
+            </div>
+            <div className={`p-5 rounded-2xl ${cardClasses}`}>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Case Studies</p>
+              <p className="text-3xl font-semibold mt-1">{caseStudies.length}</p>
+            </div>
+            <div className={`p-5 rounded-2xl ${cardClasses}`}>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Skills</p>
+              <p className="text-3xl font-semibold mt-1">{skills.length}</p>
+            </div>
+            <div className={`p-5 rounded-2xl ${cardClasses}`}>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Unread Messages</p>
+              <p className="text-3xl font-semibold mt-1">{unreadMessagesCount}</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'projects' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Manage Projects</h2>
+              <button
+                onClick={() => openProjectForm('create')}
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${
+                  isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'
+                }`}
+              >
+                <Plus size={16} /> Add Project
+              </button>
+            </div>
+
+            {projectFormState !== 'hidden' && (
+              <form onSubmit={upsertProject} className={`p-5 rounded-2xl ${cardClasses} space-y-4`}>
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold">{projectFormState === 'edit' ? 'Edit Project' : 'New Project'}</h3>
+                  <button type="button" onClick={resetProjectForm} className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-200">
+                    Cancel
+                  </button>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <input className={inputClasses} placeholder="Title" value={projectForm.title} onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })} required />
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input className={`${inputClasses} flex-1`} placeholder="Cover image URL" value={projectForm.image} onChange={(e) => setProjectForm({ ...projectForm, image: e.target.value })} />
+                      <label
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isDarkMode
+                            ? 'bg-white text-black hover:bg-gray-200'
+                            : 'bg-black text-white hover:bg-gray-900'
+                        } ${projectImageUploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleProjectImageSelect}
+                          disabled={projectImageUploading}
+                        />
+                        {projectImageUploading ? 'Uploading…' : 'Upload'}
+                      </label>
+                    </div>
+                    {projectForm.image && (
+                      <p className="text-xs text-gray-500 truncate">Image ready · {projectForm.image}</p>
+                    )}
+                  </div>
+                  <input className={inputClasses} placeholder="Primary link" value={projectForm.link} onChange={(e) => setProjectForm({ ...projectForm, link: e.target.value })} />
+                  <input className={inputClasses} placeholder="Tech stack (comma separated)" value={projectForm.tech} onChange={(e) => setProjectForm({ ...projectForm, tech: e.target.value })} />
+                  <input className={inputClasses} placeholder="App Store URL" value={projectForm.appStore} onChange={(e) => setProjectForm({ ...projectForm, appStore: e.target.value })} />
+                  <input className={inputClasses} placeholder="Play Store URL" value={projectForm.playStore} onChange={(e) => setProjectForm({ ...projectForm, playStore: e.target.value })} />
+                  <input className={inputClasses} placeholder="GitHub URL" value={projectForm.githubLink} onChange={(e) => setProjectForm({ ...projectForm, githubLink: e.target.value })} />
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" checked={projectForm.featured} onChange={(e) => setProjectForm({ ...projectForm, featured: e.target.checked })} />
+                    Featured project
+                  </label>
+                </div>
+                <textarea
+                  className={`${inputClasses} min-h-[120px]`}
+                  placeholder="Description"
+                  value={projectForm.description}
+                  onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+                />
+                <button
+                  type="submit"
+                  className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}
+                >
+                  {projectSaving ? 'Saving…' : 'Save Project'}
+                </button>
+              </form>
+            )}
+
+            <div className={`rounded-2xl overflow-hidden ${cardClasses}`}>
+              <table className="w-full">
+                <thead className={isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-gray-100 text-gray-600'}>
+                  <tr>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide px-6 py-3">Title</th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide px-6 py-3">Tech</th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide px-6 py-3">Featured</th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide px-6 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projects.map((project) => (
+                    <tr key={project.id} className={isDarkMode ? 'border-t border-gray-800' : 'border-t border-gray-200'}>
+                      <td className="px-6 py-3 text-sm">{project.title}</td>
+                      <td className="px-6 py-3 text-sm text-gray-500">{project.tech.slice(0, 3).join(', ')}</td>
+                      <td className="px-6 py-3 text-sm">{project.featured ? '✓' : '-'}</td>
+                      <td className="px-6 py-3 text-sm flex gap-2">
+                        <button onClick={() => openProjectForm('edit', project)} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={() => removeProject(project.id)} className="p-1 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'caseStudies' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Case Studies</h2>
+              <button
+                onClick={() => openCaseStudyForm('create')}
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${
+                  isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'
+                }`}
+              >
+                <Plus size={16} /> Add Case Study
+              </button>
+            </div>
+
+            {caseStudyFormState !== 'hidden' && (
+              <form onSubmit={upsertCaseStudy} className={`p-5 rounded-2xl ${cardClasses} space-y-4`}>
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold">{caseStudyFormState === 'edit' ? 'Edit Case Study' : 'New Case Study'}</h3>
+                  <button type="button" onClick={resetCaseStudyForm} className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-200">
+                    Cancel
+                  </button>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <input className={inputClasses} placeholder="Title" value={caseStudyForm.title} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, title: e.target.value })} required />
+                  <input className={inputClasses} placeholder="Client" value={caseStudyForm.client} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, client: e.target.value })} required />
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input className={`${inputClasses} flex-1`} placeholder="Hero image URL" value={caseStudyForm.image} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, image: e.target.value })} />
+                      <label
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isDarkMode
+                            ? 'bg-white text-black hover:bg-gray-200'
+                            : 'bg-black text-white hover:bg-gray-900'
+                        } ${caseStudyImageUploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleCaseStudyImageSelect}
+                          disabled={caseStudyImageUploading}
+                        />
+                        {caseStudyImageUploading ? 'Uploading…' : 'Upload'}
+                      </label>
+                    </div>
+                    {caseStudyForm.image && (
+                      <p className="text-xs text-gray-500 truncate">Image ready · {caseStudyForm.image}</p>
+                    )}
+                  </div>
+                </div>
+                <textarea className={`${inputClasses} min-h-[100px]`} placeholder="Challenge" value={caseStudyForm.challenge} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, challenge: e.target.value })} />
+                <textarea className={`${inputClasses} min-h-[100px]`} placeholder="Solution" value={caseStudyForm.solution} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, solution: e.target.value })} />
+                <textarea className={`${inputClasses} min-h-[100px]`} placeholder="Impact" value={caseStudyForm.impact} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, impact: e.target.value })} />
+                <button type="submit" className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}>
+                  {caseStudySaving ? 'Saving…' : 'Save Case Study'}
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-4">
+              {caseStudies.map((study) => (
+                <div key={study.id} className={`p-4 rounded-2xl ${cardClasses}`}>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-gray-500">{study.client}</p>
+                      <h3 className="text-xl font-semibold">{study.title}</h3>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => openCaseStudyForm('edit', study)} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-800">
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => removeCaseStudy(study.id)} className="p-2 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-4 text-sm text-gray-500">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide mb-1">Challenge</p>
+                      <p>{study.challenge}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide mb-1">Solution</p>
+                      <p>{study.solution}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide mb-1">Impact</p>
+                      <p>{study.impact}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'skills' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Skills</h2>
+              <button
+                onClick={() => openSkillForm('create')}
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${
+                  isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'
+                }`}
+              >
+                <Plus size={16} /> Add Skill
+              </button>
+            </div>
+
+            {skillFormState !== 'hidden' && (
+              <form onSubmit={upsertSkill} className={`p-5 rounded-2xl ${cardClasses} space-y-4`}>
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold">{skillFormState === 'edit' ? 'Edit Skill' : 'New Skill'}</h3>
+                  <button type="button" onClick={resetSkillForm} className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-200">
+                    Cancel
+                  </button>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <input className={inputClasses} placeholder="Title" value={skillForm.title} onChange={(e) => setSkillForm({ ...skillForm, title: e.target.value })} required />
+                  <input className={inputClasses} placeholder="Icon key (e.g. smartphone, code)" value={skillForm.icon} onChange={(e) => setSkillForm({ ...skillForm, icon: e.target.value })} />
+                </div>
+                <textarea className={`${inputClasses} min-h-[100px]`} placeholder="Description" value={skillForm.description} onChange={(e) => setSkillForm({ ...skillForm, description: e.target.value })} />
+                <button type="submit" className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}>
+                  {skillSaving ? 'Saving…' : 'Save Skill'}
+                </button>
+              </form>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-4">
+              {skills.map((skill) => (
+                <div key={skill.id} className={`p-4 rounded-2xl ${cardClasses}`}>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-semibold">{skill.title}</h3>
+                    <div className="flex gap-2">
+                      <button onClick={() => openSkillForm('edit', skill)} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-800">
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => removeSkill(skill.id)} className="p-2 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500">{skill.description}</p>
+                  <p className="text-xs uppercase tracking-wide text-gray-500 mt-3">Icon: {skill.icon}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'notes' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Research Notes</h2>
+              <button
+                onClick={() => openNoteForm('create')}
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${
+                  isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'
+                }`}
+              >
+                <Plus size={16} /> New Note
+              </button>
+            </div>
+
+            {noteFormState !== 'hidden' && (
+              <form onSubmit={upsertNote} className={`p-5 rounded-2xl ${cardClasses} space-y-4`}>
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold">{noteFormState === 'edit' ? 'Edit Note' : 'New Note'}</h3>
+                  <button type="button" onClick={resetNoteForm} className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-200">
+                    Cancel
+                  </button>
+                </div>
+                <input className={inputClasses} placeholder="Title" value={noteForm.title} onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })} required />
+                <textarea className={`${inputClasses} min-h-[120px]`} placeholder="Summary / learnings" value={noteForm.summary} onChange={(e) => setNoteForm({ ...noteForm, summary: e.target.value })} />
+                <div className="grid md:grid-cols-2 gap-4">
+                  <input className={inputClasses} placeholder="Reference link" value={noteForm.link} onChange={(e) => setNoteForm({ ...noteForm, link: e.target.value })} />
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input className={`${inputClasses} flex-1`} placeholder="Image URL" value={noteForm.image} onChange={(e) => setNoteForm({ ...noteForm, image: e.target.value })} />
+                      <label
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isDarkMode
+                            ? 'bg-white text-black hover:bg-gray-200'
+                            : 'bg-black text-white hover:bg-gray-900'
+                        } ${noteImageUploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleNoteImageSelect}
+                          disabled={noteImageUploading}
+                        />
+                        {noteImageUploading ? 'Uploading…' : 'Upload'}
+                      </label>
+                    </div>
+                    {noteForm.image && (
+                      <p className="text-xs text-gray-500 truncate">Image ready · {noteForm.image}</p>
+                    )}
+                  </div>
+                </div>
+                <button type="submit" className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}>
+                  {noteSaving ? 'Saving…' : 'Save Note'}
+                </button>
+              </form>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-4">
+              {notes.map((note) => (
+                <div key={note.id} className={`p-4 rounded-2xl ${cardClasses} flex flex-col gap-3`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold">{note.title}</h3>
+                      <p className="text-xs text-gray-500">{new Date(note.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => openNoteForm('edit', note)} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-800">
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => removeNote(note.id)} className="p-2 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  {note.image && <img src={note.image} alt={note.title} className="rounded-lg h-36 object-cover" />}
+                  <p className="text-sm text-gray-500">{note.summary}</p>
+                  {note.link && (
+                    <a href={note.link} target="_blank" rel="noreferrer" className="text-sm font-medium underline">
+                      Open reference →
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'messages' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Contact Messages</h2>
+              <span className="text-sm text-gray-500">{contactMessages.length} total</span>
+            </div>
+            {contactMessages.length === 0 ? (
+              <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>No messages yet</p>
+            ) : (
+              contactMessages.map((msg: ContactMessage) => (
+                <div key={msg.id} className={`p-4 rounded-2xl ${cardClasses}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h3 className="font-semibold">{msg.name}</h3>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{msg.email}</p>
+                    </div>
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        msg.read
+                          ? isDarkMode
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-gray-200 text-gray-800'
+                          : isDarkMode
+                            ? 'bg-white text-black'
+                            : 'bg-black text-white'
+                      }`}
+                    >
+                      {msg.read ? 'Read' : 'Unread'}
+                    </span>
+                  </div>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{msg.message}</p>
+                  <div className="flex justify-between items-center mt-3 text-xs text-gray-500">
+                    <p>{new Date(msg.timestamp).toLocaleString()}</p>
+                    <div className="flex gap-3">
+                      {!msg.read && (
+                        <button onClick={() => updateMessageStatus(msg.id, true)} className="flex items-center gap-1 text-green-500">
+                          <Check size={14} /> Mark read
+                        </button>
+                      )}
+                      {msg.read && (
+                        <button onClick={() => updateMessageStatus(msg.id, false)} className="flex items-center gap-1 text-amber-500">
+                          <XCircle size={14} /> Mark unread
+                        </button>
+                      )}
+                      <button onClick={() => removeMessage(msg.id)} className="flex items-center gap-1 text-red-500">
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
