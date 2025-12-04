@@ -9,6 +9,9 @@ export default function Projects() {
   const [visibleProjects, setVisibleProjects] = useState<Set<string>>(new Set())
   const sectionRef = useRef<HTMLDivElement>(null)
 
+  console.log(featuredProjects);
+  
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {

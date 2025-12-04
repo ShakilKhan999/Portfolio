@@ -50,7 +50,7 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="https://linkedin.com/in/shakil-khan-796384200" target="_blank" rel="noopener noreferrer" className={`transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
+                <a href="https://www.linkedin.com/in/shakil-khan-796384200/" target="_blank" rel="noopener noreferrer" className={`transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
                   LinkedIn
                 </a>
               </li>

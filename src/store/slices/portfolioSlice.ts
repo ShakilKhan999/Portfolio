@@ -21,6 +21,7 @@ export interface CaseStudy {
   solution: string
   impact: string
   image: string
+  categories?: string[]
 }
 
 export interface Skill {
@@ -37,6 +38,7 @@ export interface ResearchNote {
   link?: string
   image?: string
   createdAt: number
+  status?: 'failed' | 'normal'
 }
 
 const defaultProjects: Project[] = [
@@ -116,6 +118,7 @@ const defaultCaseStudies: CaseStudy[] = [
     solution: 'Created intuitive UI with biometric auth, reducing transaction time by 60%',
     impact: '150K+ downloads, 4.8★ rating',
     image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&q=80',
+    categories: ['FinTech', 'UX']
   },
   {
     id: '2',
@@ -125,6 +128,7 @@ const defaultCaseStudies: CaseStudy[] = [
     solution: 'Implemented local-first architecture with smart sync and live GPS tracking',
     impact: '99.9% uptime, 40% faster deliveries',
     image: 'https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?w=800&q=80',
+    categories: ['Logistics', 'Offline']
   },
 ]
 

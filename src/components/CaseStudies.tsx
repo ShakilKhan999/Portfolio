@@ -5,6 +5,7 @@ export default function CaseStudies() {
   const caseStudies = useAppSelector((state) => state.portfolio.caseStudies)
   const isDarkMode = useAppSelector((state) => state.ui.isDarkMode)
   const [visibleStudies, setVisibleStudies] = useState<Set<string>>(new Set())
+  const [activeCategory, setActiveCategory] = useState<string>('All')
   const sectionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -29,7 +30,7 @@ export default function CaseStudies() {
   }, [caseStudies])
 
   return (
-    <section id="case-studies" className={`py-20 px-6 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
+    <section id="field-notes" className={`py-20 px-6 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 
@@ -38,7 +39,7 @@ export default function CaseStudies() {
               animation: 'slideUp 0.8s ease-out forwards',
             }}
           >
-            Case Studies
+            Field Notes
           </h2>
           <p 
             className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
@@ -47,12 +48,28 @@ export default function CaseStudies() {
               opacity: 0,
             }}
           >
-            Deep dives into real-world challenges and solutions
+            Notes and solved issues from real work — concise problem/solution writeups
           </p>
         </div>
 
+        {/* Category filter */}
+        <div className="flex items-center gap-3 mb-8 flex-wrap">
+          {['All', ...Array.from(new Set(caseStudies.flatMap(s => s.categories ?? [])))]
+            .map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition ${activeCategory === cat ? 'ring-2 ring-pink-400 bg-pink-50 text-pink-600' : isDarkMode ? 'bg-white/5 text-white' : 'bg-gray-100 text-black'}`}
+              >
+                {cat}
+              </button>
+            ))}
+        </div>
+
         <div ref={sectionRef} className="space-y-16">
-          {caseStudies.map((study, index) => (
+          {caseStudies
+            .filter(s => activeCategory === 'All' || (s.categories ?? []).includes(activeCategory))
+            .map((study, index) => (
             <div 
               key={study.id} 
               className={`grid md:grid-cols-2 gap-10 items-center ${index % 2 === 1 ? 'md:grid-flow-dense' : ''}`}
@@ -70,8 +87,18 @@ export default function CaseStudies() {
 
               {/* Content */}
               <div className="space-y-5">
-                <div className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${isDarkMode ? 'bg-white/15 text-white' : 'bg-black text-white'}`}>
-                  {study.client}
+                <div className="flex items-center gap-3">
+                  <div className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${isDarkMode ? 'bg-white/15 text-white' : 'bg-black text-white'}`}>
+                    {study.client}
+                  </div>
+                  {/* categories tags */}
+                  <div className="flex gap-2 flex-wrap">
+                    {(study.categories ?? []).map((c) => (
+                      <span key={c} className={`text-sm px-3 py-1 rounded-full ${isDarkMode ? 'bg-white/10 text-white' : 'bg-gray-100 text-black'}`}>
+                        {c}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 <h3 className="text-4xl font-bold">{study.title}</h3>
 

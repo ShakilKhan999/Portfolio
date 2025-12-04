@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react'
-import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore'
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
+// Firebase Storage upload removed: replaced by external-link flow
 import { X, LogOut, Plus, Edit2, Trash2, Check, XCircle } from 'lucide-react'
 import { useAppSelector } from '../hooks/useAppSelector'
 import { useAppDispatch } from '../hooks/useAppDispatch'
 import type { RootState } from '../store'
-import { auth, db, storage } from '../config/firebase'
+import { auth, db } from '../config/firebase'
 import { loginSuccess, loginError, logout as logoutAction, setLoading as setAuthLoading } from '../store/slices/authSlice'
 import { ContactMessage } from '../store/slices/contactSlice'
 import { CaseStudy, Project, ResearchNote, Skill } from '../store/slices/portfolioSlice'
@@ -52,6 +52,7 @@ interface NoteFormState {
   link: string
   image: string
   createdAt?: number
+  status?: 'failed' | 'normal'
 }
 
 const emptyProjectForm: ProjectFormState = {
@@ -91,19 +92,11 @@ const emptyNoteForm: NoteFormState = {
   link: '',
   image: '',
   createdAt: Date.now(),
+  status: 'normal',
 }
 
-const sanitizeFileName = (name: string) =>
-  name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9.]+/g, '-')
-
-const uploadImageToStorage = async (file: File, folder: string) => {
-  const fileRef = ref(storage, `${folder}/${Date.now()}-${sanitizeFileName(file.name)}`)
-  await uploadBytes(fileRef, file, { contentType: file.type })
-  return getDownloadURL(fileRef)
-}
+// Note: Firebase Storage upload helpers removed because the project was not using a provisioned bucket.
+// Admins should paste external image/asset URLs into the image fields instead.
 
 export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const dispatch = useAppDispatch()
@@ -127,12 +120,12 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const [projectFormState, setProjectFormState] = useState<'hidden' | 'create' | 'edit'>('hidden')
   const [projectForm, setProjectForm] = useState<ProjectFormState>(emptyProjectForm)
   const [projectSaving, setProjectSaving] = useState(false)
-  const [projectImageUploading, setProjectImageUploading] = useState(false)
+  
 
   const [caseStudyFormState, setCaseStudyFormState] = useState<'hidden' | 'create' | 'edit'>('hidden')
   const [caseStudyForm, setCaseStudyForm] = useState<CaseStudyFormState>(emptyCaseStudyForm)
   const [caseStudySaving, setCaseStudySaving] = useState(false)
-  const [caseStudyImageUploading, setCaseStudyImageUploading] = useState(false)
+  
 
   const [skillFormState, setSkillFormState] = useState<'hidden' | 'create' | 'edit'>('hidden')
   const [skillForm, setSkillForm] = useState<SkillFormState>(emptySkillForm)
@@ -141,7 +134,13 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const [noteFormState, setNoteFormState] = useState<'hidden' | 'create' | 'edit'>('hidden')
   const [noteForm, setNoteForm] = useState<NoteFormState>(emptyNoteForm)
   const [noteSaving, setNoteSaving] = useState(false)
-  const [noteImageUploading, setNoteImageUploading] = useState(false)
+  
+  // CV (Drive link) management
+  const [cvLink, setCvLink] = useState('')
+  const [cvSaving, setCvSaving] = useState(false)
+  // Profile image management
+  const [profileImage, setProfileImage] = useState('')
+  const [profileSaving, setProfileSaving] = useState(false)
 
   const inputClasses = isDarkMode
     ? 'w-full px-4 py-2 rounded-lg border border-gray-800 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-white'
@@ -149,42 +148,37 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
 
   const cardClasses = isDarkMode ? 'border border-gray-800 bg-gray-900/40' : 'border border-gray-200 bg-gray-50'
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-    folder: string,
-    setUploading: (value: boolean) => void,
-    onUrl: (url: string) => void
-  ) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  // File upload handlers removed. Admins should paste external image URLs into the image fields.
 
-    setUploading(true)
+  // Normalize common shared links into direct image URLs that browsers can load (Google Drive, Dropbox)
+  const normalizeExternalUrl = (raw: string) => {
+    const url = (raw || '').trim()
+    if (!url) return ''
+
     try {
-      const url = await uploadImageToStorage(file, folder)
-      onUrl(url)
-    } catch (error) {
-      console.error(error)
-      alert('Failed to upload image. Please try again.')
-    } finally {
-      setUploading(false)
-      event.target.value = ''
+      // Google Drive: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+      const driveFileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
+      if (driveFileMatch) {
+        return `https://drive.google.com/uc?export=view&id=${driveFileMatch[1]}`
+      }
+
+      // Google Drive share with id param: https://drive.google.com/open?id=FILE_ID
+      const driveIdMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/)
+      if (driveIdMatch) {
+        return `https://drive.google.com/uc?export=view&id=${driveIdMatch[1]}`
+      }
+
+      // Dropbox shared links: change dl=0 to raw=1 to embed
+      if (url.includes('dropbox.com')) {
+        return url.replace('?dl=0', '?raw=1').replace('?dl=1', '?raw=1')
+      }
+
+      // Otherwise return as-is
+      return url
+    } catch (err) {
+      return url
     }
   }
-
-  const handleProjectImageSelect = (event: React.ChangeEvent<HTMLInputElement>) =>
-    handleFileUpload(event, 'project-images', setProjectImageUploading, (url) =>
-      setProjectForm((prev) => ({ ...prev, image: url }))
-    )
-
-  const handleCaseStudyImageSelect = (event: React.ChangeEvent<HTMLInputElement>) =>
-    handleFileUpload(event, 'case-study-images', setCaseStudyImageUploading, (url) =>
-      setCaseStudyForm((prev) => ({ ...prev, image: url }))
-    )
-
-  const handleNoteImageSelect = (event: React.ChangeEvent<HTMLInputElement>) =>
-    handleFileUpload(event, 'note-images', setNoteImageUploading, (url) =>
-      setNoteForm((prev) => ({ ...prev, image: url }))
-    )
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -198,6 +192,85 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       console.error(error)
       dispatch(loginError(error.message))
       alert('Login failed. Double-check your credentials and try again.')
+    }
+  }
+
+  // Load current CV link and profileImage from Firestore (site metadata)
+  React.useEffect(() => {
+    let mounted = true
+    const fetchMeta = async () => {
+      try {
+        const docRef = doc(db, 'siteMeta', 'global')
+        const snap = await getDoc(docRef)
+        if (!mounted) return
+        if (snap.exists()) {
+          const data = snap.data() as any
+          setCvLink(data.cvLink ?? '')
+          setProfileImage(data.profileImage ?? '')
+        }
+      } catch (err) {
+        console.error('Failed to load site metadata:', err)
+      }
+    }
+    fetchMeta()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const saveCvLink = async () => {
+    setCvSaving(true)
+    try {
+      await setDoc(doc(db, 'siteMeta', 'global'), { cvLink: normalizeExternalUrl(cvLink.trim() || '') }, { merge: true })
+      alert('CV link saved')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to save CV link')
+    } finally {
+      setCvSaving(false)
+    }
+  }
+
+  const saveProfileImage = async () => {
+    setProfileSaving(true)
+    try {
+      await setDoc(doc(db, 'siteMeta', 'global'), { profileImage: normalizeExternalUrl(profileImage.trim() || '') }, { merge: true })
+      alert('Profile image saved')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to save profile image')
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
+  const deleteProfileImage = async () => {
+    if (!window.confirm('Delete the current profile image?')) return
+    setProfileSaving(true)
+    try {
+      await setDoc(doc(db, 'siteMeta', 'global'), { profileImage: '' }, { merge: true })
+      setProfileImage('')
+      alert('Profile image deleted')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to delete profile image')
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
+  const deleteCvLink = async () => {
+    if (!window.confirm('Delete the current CV link?')) return
+    setCvSaving(true)
+    try {
+      await setDoc(doc(db, 'siteMeta', 'global'), { cvLink: '' }, { merge: true })
+      setCvLink('')
+      alert('CV link deleted')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to delete CV link')
+    } finally {
+      setCvSaving(false)
     }
   }
 
@@ -248,7 +321,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       const payload: Record<string, unknown> = {
         title: projectForm.title.trim(),
         description: projectForm.description.trim(),
-        image: projectForm.image.trim(),
+        image: normalizeExternalUrl(projectForm.image.trim()),
         link: projectForm.link.trim(),
         tech: projectForm.tech
           .split(',')
@@ -328,7 +401,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         challenge: caseStudyForm.challenge.trim(),
         solution: caseStudyForm.solution.trim(),
         impact: caseStudyForm.impact.trim(),
-        image: caseStudyForm.image.trim(),
+        image: normalizeExternalUrl(caseStudyForm.image.trim()),
       }
       if (caseStudyFormState === 'edit' && caseStudyForm.id) {
         await updateDoc(doc(db, 'caseStudies', caseStudyForm.id), payload)
@@ -419,6 +492,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         link: note.link ?? '',
         image: note.image ?? '',
         createdAt: note.createdAt,
+        status: (note as any).status ?? 'normal',
       })
     } else {
       setNoteForm({ ...emptyNoteForm, createdAt: Date.now() })
@@ -438,8 +512,9 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         title: noteForm.title.trim(),
         summary: noteForm.summary.trim(),
         link: noteForm.link.trim() || undefined,
-        image: noteForm.image.trim() || undefined,
+        image: normalizeExternalUrl(noteForm.image.trim()) || undefined,
         createdAt: noteFormState === 'edit' ? noteForm.createdAt ?? Date.now() : Date.now(),
+        status: noteForm.status || 'normal',
       }
       if (noteFormState === 'edit' && noteForm.id) {
         await updateDoc(doc(db, 'notes', noteForm.id), payload)
@@ -594,6 +669,54 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
             </div>
           </div>
         )}
+        {/* CV management card shown under overview */}
+        {activeTab === 'overview' && (
+          <div className="mt-6">
+            <div className={`p-5 rounded-2xl ${cardClasses}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Site CV</p>
+                  <h3 className="text-lg font-semibold">Hire me (CV link)</h3>
+                </div>
+                <div className="text-sm text-gray-500">Manage the Drive link shown on the public site</div>
+              </div>
+              <div className="grid md:grid-cols-3 gap-4 items-center">
+                <input className={`${inputClasses} md:col-span-2`} placeholder="Paste Google Drive link or file URL" value={cvLink} onChange={(e) => setCvLink(e.target.value)} />
+                <div className="flex gap-2">
+                  <button onClick={saveCvLink} className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}>
+                    {cvSaving ? 'Saving…' : 'Save CV'}
+                  </button>
+                  <button onClick={deleteCvLink} className="px-4 py-2 rounded-lg border bg-transparent text-red-500 hover:bg-red-50">
+                    Delete
+                  </button>
+                </div>
+              </div>
+              {cvLink && (
+                <p className="text-xs text-gray-500 mt-3">Current link: <a href={cvLink} target="_blank" rel="noreferrer" className="underline">Open CV</a></p>
+              )}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Profile Image</p>
+                  <div className="text-sm text-gray-500">Shown in hero</div>
+                </div>
+                <div className="grid md:grid-cols-3 gap-4 items-center">
+                  <input className={`${inputClasses} md:col-span-2`} placeholder="Paste image URL (Drive/Dropbox/etc.)" value={profileImage} onChange={(e) => setProfileImage(e.target.value)} />
+                  <div className="flex gap-2">
+                    <button onClick={saveProfileImage} className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}>
+                      {profileSaving ? 'Saving…' : 'Save Image'}
+                    </button>
+                    <button onClick={deleteProfileImage} className="px-4 py-2 rounded-lg border bg-transparent text-red-500 hover:bg-red-50">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+                {profileImage && (
+                  <p className="text-xs text-gray-500 mt-3">Current image: <a href={profileImage} target="_blank" rel="noreferrer" className="underline">Open image</a></p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {activeTab === 'projects' && (
           <div className="space-y-6">
@@ -620,28 +743,11 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                 <div className="grid md:grid-cols-2 gap-4">
                   <input className={inputClasses} placeholder="Title" value={projectForm.title} onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })} required />
                   <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <input className={`${inputClasses} flex-1`} placeholder="Cover image URL" value={projectForm.image} onChange={(e) => setProjectForm({ ...projectForm, image: e.target.value })} />
-                      <label
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isDarkMode
-                            ? 'bg-white text-black hover:bg-gray-200'
-                            : 'bg-black text-white hover:bg-gray-900'
-                        } ${projectImageUploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleProjectImageSelect}
-                          disabled={projectImageUploading}
-                        />
-                        {projectImageUploading ? 'Uploading…' : 'Upload'}
-                      </label>
-                    </div>
+                    <input className={`${inputClasses}`} placeholder="Cover image URL (paste external URL)" value={projectForm.image} onChange={(e) => setProjectForm({ ...projectForm, image: e.target.value })} />
                     {projectForm.image && (
-                      <p className="text-xs text-gray-500 truncate">Image ready · {projectForm.image}</p>
+                      <p className="text-xs text-gray-500 truncate">Image set · {projectForm.image}</p>
                     )}
+                    <p className="text-xs text-gray-400">Note: direct in-browser uploads are disabled. Use external links (Drive, Cloudinary, etc.).</p>
                   </div>
                   <input className={inputClasses} placeholder="Primary link" value={projectForm.link} onChange={(e) => setProjectForm({ ...projectForm, link: e.target.value })} />
                   <input className={inputClasses} placeholder="Tech stack (comma separated)" value={projectForm.tech} onChange={(e) => setProjectForm({ ...projectForm, tech: e.target.value })} />
@@ -726,28 +832,11 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   <input className={inputClasses} placeholder="Title" value={caseStudyForm.title} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, title: e.target.value })} required />
                   <input className={inputClasses} placeholder="Client" value={caseStudyForm.client} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, client: e.target.value })} required />
                   <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <input className={`${inputClasses} flex-1`} placeholder="Hero image URL" value={caseStudyForm.image} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, image: e.target.value })} />
-                      <label
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isDarkMode
-                            ? 'bg-white text-black hover:bg-gray-200'
-                            : 'bg-black text-white hover:bg-gray-900'
-                        } ${caseStudyImageUploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleCaseStudyImageSelect}
-                          disabled={caseStudyImageUploading}
-                        />
-                        {caseStudyImageUploading ? 'Uploading…' : 'Upload'}
-                      </label>
-                    </div>
+                    <input className={`${inputClasses}`} placeholder="Hero image URL (paste external URL)" value={caseStudyForm.image} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, image: e.target.value })} />
                     {caseStudyForm.image && (
-                      <p className="text-xs text-gray-500 truncate">Image ready · {caseStudyForm.image}</p>
+                      <p className="text-xs text-gray-500 truncate">Image set · {caseStudyForm.image}</p>
                     )}
+                    <p className="text-xs text-gray-400">Note: direct in-browser uploads are disabled. Use external links (Drive, Cloudinary, etc.).</p>
                   </div>
                 </div>
                 <textarea className={`${inputClasses} min-h-[100px]`} placeholder="Challenge" value={caseStudyForm.challenge} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, challenge: e.target.value })} />
@@ -878,28 +967,18 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                 <div className="grid md:grid-cols-2 gap-4">
                   <input className={inputClasses} placeholder="Reference link" value={noteForm.link} onChange={(e) => setNoteForm({ ...noteForm, link: e.target.value })} />
                   <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <input className={`${inputClasses} flex-1`} placeholder="Image URL" value={noteForm.image} onChange={(e) => setNoteForm({ ...noteForm, image: e.target.value })} />
-                      <label
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isDarkMode
-                            ? 'bg-white text-black hover:bg-gray-200'
-                            : 'bg-black text-white hover:bg-gray-900'
-                        } ${noteImageUploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleNoteImageSelect}
-                          disabled={noteImageUploading}
-                        />
-                        {noteImageUploading ? 'Uploading…' : 'Upload'}
-                      </label>
-                    </div>
+                    <input className={`${inputClasses} flex-1`} placeholder="Image URL" value={noteForm.image} onChange={(e) => setNoteForm({ ...noteForm, image: e.target.value })} />
                     {noteForm.image && (
-                      <p className="text-xs text-gray-500 truncate">Image ready · {noteForm.image}</p>
+                      <p className="text-xs text-gray-500 truncate">Image set · {noteForm.image}</p>
                     )}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Status</label>
+                      <select value={noteForm.status} onChange={(e) => setNoteForm({ ...noteForm, status: e.target.value as any })} className={inputClasses}>
+                        <option value="normal">Normal</option>
+                        <option value="failed">Failed</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-gray-400">Note: direct in-browser uploads are disabled. Use external links (Drive, Cloudinary, etc.).</p>
                   </div>
                 </div>
                 <button type="submit" className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}>
@@ -920,11 +999,29 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                       <button onClick={() => openNoteForm('edit', note)} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-800">
                         <Edit2 size={16} />
                       </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const next = (note as any).status === 'failed' ? 'normal' : 'failed'
+                            await updateDoc(doc(db, 'notes', note.id), { status: next })
+                          } catch (err) {
+                            console.error(err)
+                            alert('Failed to toggle note status')
+                          }
+                        }}
+                        title="Mark failed / normal"
+                        className={`p-2 rounded ${ (note as any).status === 'failed' ? 'text-red-500' : 'text-gray-500' } hover:bg-gray-100 dark:hover:bg-gray-800`}
+                      >
+                        { (note as any).status === 'failed' ? 'Failed' : 'Mark Failed' }
+                      </button>
                       <button onClick={() => removeNote(note.id)} className="p-2 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40">
                         <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
+                  {(note as any).status === 'failed' && (
+                    <div className="text-sm text-red-500 font-medium">Status: Failed</div>
+                  )}
                   {note.image && <img src={note.image} alt={note.title} className="rounded-lg h-36 object-cover" />}
                   <p className="text-sm text-gray-500">{note.summary}</p>
                   {note.link && (
