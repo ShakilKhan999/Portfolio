@@ -62,7 +62,7 @@ const defaultProjects: Project[] = [
     image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&q=80',
     link: '#',
     featured: true,
-    githubLink: 'https://github.com/shakilkhan/baxton',
+    githubLink: 'https://github.com/ShakilKhan999/baxton',
   },
   {
     id: '3',
@@ -83,7 +83,7 @@ const defaultProjects: Project[] = [
     image: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800&q=80',
     link: '#',
     featured: false,
-    githubLink: 'https://github.com/shakilkhan/pagenati',
+    githubLink: 'https://github.com/ShakilKhan999/pagenati',
   },
   {
     id: '5',
@@ -94,7 +94,7 @@ const defaultProjects: Project[] = [
     image: 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=800&q=80',
     link: '#',
     featured: false,
-    githubLink: 'https://github.com/shakilkhan/clove',
+    githubLink: 'https://github.com/ShakilKhan999/clove',
   },
   {
     id: '6',
@@ -105,7 +105,7 @@ const defaultProjects: Project[] = [
     image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80',
     link: '#',
     featured: false,
-    githubLink: 'https://github.com/shakilkhan/temple-webster',
+    githubLink: 'https://github.com/ShakilKhan999/temple-webster',
   },
 ]
 

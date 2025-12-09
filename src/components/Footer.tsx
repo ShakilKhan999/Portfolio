@@ -45,7 +45,7 @@ export default function Footer() {
             <h4 className="font-semibold mb-3">Connect</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="https://github.com/shakilkhan" target="_blank" rel="noopener noreferrer" className={`transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
+                <a href="https://github.com/ShakilKhan999" target="_blank" rel="noopener noreferrer" className={`transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
                   GitHub
                 </a>
               </li>

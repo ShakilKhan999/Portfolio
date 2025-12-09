@@ -190,3 +190,75 @@ body.dark-mode {
 .dark-mode .medium-shadow {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
+
+/* Article / reading view styles (Medium-like) */
+.article-container {
+    display: block;
+    margin: 0 auto;
+    max-width: 1100px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.article-grid {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 2.5rem;
+    align-items: start;
+}
+
+.article-side {
+    font-size: 0.95rem;
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.dark-mode .article-side {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.article-main {
+    padding-top: 0.25rem;
+}
+
+.article-title {
+    font-size: 2.75rem;
+    line-height: 1.05;
+    margin-bottom: 0.25rem;
+    font-weight: 800;
+}
+
+.article-meta {
+    color: rgba(0, 0, 0, 0.55);
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+}
+
+.dark-mode .article-meta {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.article-content {
+    max-width: 65ch;
+    /* comfortable measure */
+    font-size: 18px;
+    line-height: 1.8;
+    color: #222;
+}
+
+.dark-mode .article-content {
+    color: #e6e6e6;
+}
+
+@media (max-width: 768px) {
+    .article-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .article-side {
+        display: none;
+    }
+
+    .article-title {
+        font-size: 2rem;
+    }
+}

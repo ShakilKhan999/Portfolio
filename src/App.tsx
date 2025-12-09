@@ -10,6 +10,9 @@ import Contact from './components/Contact'
 import Footer from './components/Footer'
 import AdminDashboard from './components/AdminDashboard'
 import ParticleField from './components/ParticleField'
+import NotePage from './components/NotePage'
+import AllNotesPage from './components/AllNotesPage'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useFirestoreSync } from './hooks/useFirestoreSync'
 import { RootState } from './store'
 
@@ -122,26 +125,32 @@ export default function App() {
   if (showAdmin) {
     return <AdminDashboard onClose={() => setShowAdmin(false)} />
   }
-
-  return (
+  const Layout = ({ children }: { children: React.ReactNode }) => (
     <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-black'}`}>
-      {/* Particle Animation Background */}
       <ParticleField />
-
-      {/* Navigation */}
       <Navigation onAdminAccess={() => setShowAdmin(true)} />
-
-      {/* Main Content */}
-      <main>
-        <Hero />
-        <Skills />
-        <Projects />
-        <CaseStudies />
-        <Contact />
-      </main>
-
-      {/* Footer */}
+      {children}
       <Footer />
     </div>
+  )
+
+  const HomeContent = (
+    <main>
+      <Hero />
+      <Skills />
+      <Projects />
+      <CaseStudies />
+      <Contact />
+    </main>
+  )
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout>{HomeContent}</Layout>} />
+        <Route path="/notes/:id" element={<Layout><NotePage /></Layout>} />
+        <Route path="/all-notes" element={<Layout><AllNotesPage /></Layout>} />
+      </Routes>
+    </BrowserRouter>
   )
 }

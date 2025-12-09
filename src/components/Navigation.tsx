@@ -91,7 +91,7 @@ export default function Navigation({ onAdminAccess }: NavigationProps) {
           : 'bg-white/50'
       } backdrop-blur-xl`}
     >
-      <div className="max-w-6xl mx-auto px-6 py-4 w-full">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 w-full">
         <div className="flex justify-between items-center">
           {/* Logo */}
           <div

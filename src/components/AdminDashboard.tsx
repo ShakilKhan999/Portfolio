@@ -103,7 +103,6 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const isDarkMode = useAppSelector((state: RootState) => state.ui.isDarkMode)
   const authState = useAppSelector((state: RootState) => state.auth)
   const projects = useAppSelector((state: RootState) => state.portfolio.projects)
-  const caseStudies = useAppSelector((state: RootState) => state.portfolio.caseStudies)
   const skills = useAppSelector((state: RootState) => state.portfolio.skills)
   const notes = useAppSelector((state: RootState) => state.portfolio.notes)
   const contactMessages = useAppSelector((state: RootState) => state.contact.messages)
@@ -113,7 +112,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     [contactMessages]
   )
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'caseStudies' | 'skills' | 'notes' | 'messages'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'skills' | 'notes' | 'messages'>('overview')
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
 
@@ -631,20 +630,20 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       </div>
 
       <div className="max-w-6xl mx-auto p-6 space-y-6">
-        <div className="flex gap-4 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
-          {['overview', 'projects', 'caseStudies', 'skills', 'notes', 'messages'].map((tab) => (
+        <div className="flex gap-2 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
+          {['overview', 'projects', 'skills', 'notes', 'messages'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as typeof activeTab)}
-              className={`px-4 py-2 border-b-2 transition-all capitalize ${
+              className={`px-4 py-2 rounded-t-lg font-medium transition-all capitalize border-b-2 ${
                 activeTab === tab
                   ? isDarkMode
-                    ? 'border-white text-white'
-                    : 'border-black text-black'
-                  : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`
+                    ? 'border-white text-white bg-gray-800/50'
+                    : 'border-black text-black bg-gray-100'
+                  : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:border-gray-700' : 'text-gray-600 hover:text-gray-900 hover:border-gray-300'}`
               }`}
             >
-              {tab}
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -655,10 +654,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
               <p className="text-xs uppercase tracking-wide text-gray-500">Projects</p>
               <p className="text-3xl font-semibold mt-1">{projects.length}</p>
             </div>
-            <div className={`p-5 rounded-2xl ${cardClasses}`}>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Case Studies</p>
-              <p className="text-3xl font-semibold mt-1">{caseStudies.length}</p>
-            </div>
+
             <div className={`p-5 rounded-2xl ${cardClasses}`}>
               <p className="text-xs uppercase tracking-wide text-gray-500">Skills</p>
               <p className="text-3xl font-semibold mt-1">{skills.length}</p>
@@ -806,85 +802,6 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
           </div>
         )}
 
-        {activeTab === 'caseStudies' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Case Studies</h2>
-              <button
-                onClick={() => openCaseStudyForm('create')}
-                className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${
-                  isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'
-                }`}
-              >
-                <Plus size={16} /> Add Case Study
-              </button>
-            </div>
-
-            {caseStudyFormState !== 'hidden' && (
-              <form onSubmit={upsertCaseStudy} className={`p-5 rounded-2xl ${cardClasses} space-y-4`}>
-                <div className="flex justify-between items-center">
-                  <h3 className="font-semibold">{caseStudyFormState === 'edit' ? 'Edit Case Study' : 'New Case Study'}</h3>
-                  <button type="button" onClick={resetCaseStudyForm} className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-200">
-                    Cancel
-                  </button>
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <input className={inputClasses} placeholder="Title" value={caseStudyForm.title} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, title: e.target.value })} required />
-                  <input className={inputClasses} placeholder="Client" value={caseStudyForm.client} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, client: e.target.value })} required />
-                  <div className="space-y-2">
-                    <input className={`${inputClasses}`} placeholder="Hero image URL (paste external URL)" value={caseStudyForm.image} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, image: e.target.value })} />
-                    {caseStudyForm.image && (
-                      <p className="text-xs text-gray-500 truncate">Image set · {caseStudyForm.image}</p>
-                    )}
-                    <p className="text-xs text-gray-400">Note: direct in-browser uploads are disabled. Use external links (Drive, Cloudinary, etc.).</p>
-                  </div>
-                </div>
-                <textarea className={`${inputClasses} min-h-[100px]`} placeholder="Challenge" value={caseStudyForm.challenge} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, challenge: e.target.value })} />
-                <textarea className={`${inputClasses} min-h-[100px]`} placeholder="Solution" value={caseStudyForm.solution} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, solution: e.target.value })} />
-                <textarea className={`${inputClasses} min-h-[100px]`} placeholder="Impact" value={caseStudyForm.impact} onChange={(e) => setCaseStudyForm({ ...caseStudyForm, impact: e.target.value })} />
-                <button type="submit" className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}>
-                  {caseStudySaving ? 'Saving…' : 'Save Case Study'}
-                </button>
-              </form>
-            )}
-
-            <div className="space-y-4">
-              {caseStudies.map((study) => (
-                <div key={study.id} className={`p-4 rounded-2xl ${cardClasses}`}>
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-gray-500">{study.client}</p>
-                      <h3 className="text-xl font-semibold">{study.title}</h3>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => openCaseStudyForm('edit', study)} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-800">
-                        <Edit2 size={16} />
-                      </button>
-                      <button onClick={() => removeCaseStudy(study.id)} className="p-2 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-3 gap-4 text-sm text-gray-500">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide mb-1">Challenge</p>
-                      <p>{study.challenge}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide mb-1">Solution</p>
-                      <p>{study.solution}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide mb-1">Impact</p>
-                      <p>{study.impact}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {activeTab === 'skills' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -963,41 +880,54 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   </button>
                 </div>
                 <input className={inputClasses} placeholder="Title" value={noteForm.title} onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })} required />
-                <textarea className={`${inputClasses} min-h-[120px]`} placeholder="Summary / learnings" value={noteForm.summary} onChange={(e) => setNoteForm({ ...noteForm, summary: e.target.value })} />
-                <div className="grid md:grid-cols-2 gap-4">
-                  <input className={inputClasses} placeholder="Reference link" value={noteForm.link} onChange={(e) => setNoteForm({ ...noteForm, link: e.target.value })} />
+                <textarea className={`${inputClasses} min-h-[120px]`} placeholder="Summary / learnings" value={noteForm.summary} onChange={(e) => setNoteForm({ ...noteForm, summary: e.target.value })} required />
+                <div className="grid md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <input className={`${inputClasses} flex-1`} placeholder="Image URL" value={noteForm.image} onChange={(e) => setNoteForm({ ...noteForm, image: e.target.value })} />
+                    <label className="block text-xs font-medium">Image URL</label>
+                    <input className={inputClasses} placeholder="Paste image URL" value={noteForm.image} onChange={(e) => setNoteForm({ ...noteForm, image: e.target.value })} />
                     {noteForm.image && (
-                      <p className="text-xs text-gray-500 truncate">Image set · {noteForm.image}</p>
+                      <p className="text-xs text-green-600 dark:text-green-400">✓ Image set</p>
                     )}
-                    <div>
-                      <label className="block text-xs font-medium mb-1">Status</label>
-                      <select value={noteForm.status} onChange={(e) => setNoteForm({ ...noteForm, status: e.target.value as any })} className={inputClasses}>
-                        <option value="normal">Normal</option>
-                        <option value="failed">Failed</option>
-                      </select>
-                    </div>
-                    <p className="text-xs text-gray-400">Note: direct in-browser uploads are disabled. Use external links (Drive, Cloudinary, etc.).</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium">Reference Link</label>
+                    <input className={inputClasses} placeholder="Optional reference" value={noteForm.link} onChange={(e) => setNoteForm({ ...noteForm, link: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium">Status</label>
+                    <select value={noteForm.status || 'normal'} onChange={(e) => setNoteForm({ ...noteForm, status: e.target.value as 'normal' | 'failed' })} className={inputClasses}>
+                      <option value="normal">Normal</option>
+                      <option value="failed">Failed</option>
+                    </select>
                   </div>
                 </div>
+                <p className="text-xs text-gray-400">Note: Use external links (Google Drive, Dropbox, etc.)</p>
                 <button type="submit" className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}>
                   {noteSaving ? 'Saving…' : 'Save Note'}
                 </button>
               </form>
             )}
 
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {notes.map((note) => (
-                <div key={note.id} className={`p-4 rounded-2xl ${cardClasses} flex flex-col gap-3`}>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold">{note.title}</h3>
-                      <p className="text-xs text-gray-500">{new Date(note.createdAt).toLocaleString()}</p>
+                <div key={note.id} className={`p-4 rounded-xl border transition ${isDarkMode ? 'border-gray-700 bg-gray-900/30 hover:bg-gray-900/50' : 'border-gray-200 bg-gray-50 hover:bg-white'}`}>
+                  {note.image && <img src={note.image} alt={note.title} className="rounded-lg h-40 w-full object-cover mb-3" />}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1">
+                        <h3 className="font-semibold line-clamp-2">{note.title}</h3>
+                        <p className="text-xs text-gray-500">{new Date(note.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      {(note as any).status === 'failed' && (
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${isDarkMode ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-600'}`}>
+                          Failed
+                        </span>
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => openNoteForm('edit', note)} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-800">
-                        <Edit2 size={16} />
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{note.summary}</p>
+                    <div className="flex gap-2 pt-2">
+                      <button onClick={() => openNoteForm('edit', note)} className={`flex-1 p-2 rounded-lg text-sm transition ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'}`}>
+                        <Edit2 size={14} className="inline mr-1" /> Edit
                       </button>
                       <button
                         onClick={async () => {
@@ -1009,26 +939,15 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                             alert('Failed to toggle note status')
                           }
                         }}
-                        title="Mark failed / normal"
-                        className={`p-2 rounded ${ (note as any).status === 'failed' ? 'text-red-500' : 'text-gray-500' } hover:bg-gray-100 dark:hover:bg-gray-800`}
+                        className={`flex-1 p-2 rounded-lg text-sm transition ${(note as any).status === 'failed' ? isDarkMode ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50' : 'bg-red-100 text-red-600 hover:bg-red-200' : isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
-                        { (note as any).status === 'failed' ? 'Failed' : 'Mark Failed' }
+                        {(note as any).status === 'failed' ? 'Unfail' : 'Mark Failed'}
                       </button>
-                      <button onClick={() => removeNote(note.id)} className="p-2 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40">
-                        <Trash2 size={16} />
+                      <button onClick={() => removeNote(note.id)} className={`p-2 rounded-lg transition ${isDarkMode ? 'text-red-400 bg-red-900/20 hover:bg-red-900/40' : 'text-red-600 bg-red-100 hover:bg-red-200'}`}>
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
-                  {(note as any).status === 'failed' && (
-                    <div className="text-sm text-red-500 font-medium">Status: Failed</div>
-                  )}
-                  {note.image && <img src={note.image} alt={note.title} className="rounded-lg h-36 object-cover" />}
-                  <p className="text-sm text-gray-500">{note.summary}</p>
-                  {note.link && (
-                    <a href={note.link} target="_blank" rel="noreferrer" className="text-sm font-medium underline">
-                      Open reference →
-                    </a>
-                  )}
                 </div>
               ))}
             </div>

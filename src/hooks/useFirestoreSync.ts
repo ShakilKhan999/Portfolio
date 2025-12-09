@@ -66,6 +66,7 @@ const mapCaseStudy = (doc: QueryDocumentSnapshot<DocumentData>): CaseStudy => {
     solution: data.solution ?? '',
     impact: data.impact ?? '',
     image: data.image ?? '',
+    categories: Array.isArray(data.categories) ? data.categories : [],
   }
 }
 
@@ -119,6 +120,7 @@ export const useFirestoreSync = () => {
       onSnapshot(
         query(collection(db, 'projects'), orderBy('title')),
         (snapshot) => {
+          console.debug('[Firestore] projects snapshot:', snapshot.size, snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
           dispatch(setProjects(snapshot.docs.map(mapProject)))
           dispatch(setLoading(false))
         },
@@ -126,8 +128,14 @@ export const useFirestoreSync = () => {
       ),
       onSnapshot(
         query(collection(db, 'caseStudies'), orderBy('title')),
-        (snapshot) => dispatch(setCaseStudies(snapshot.docs.map(mapCaseStudy))),
-        (error) => dispatch(setError(error.message))
+        (snapshot) => {
+          console.debug('[Firestore] caseStudies snapshot:', snapshot.size, snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+          dispatch(setCaseStudies(snapshot.docs.map(mapCaseStudy)))
+        },
+        (error) => {
+          console.error('[Firestore] caseStudies sync error', error)
+          dispatch(setError(error.message))
+        }
       ),
       onSnapshot(
         query(collection(db, 'skills'), orderBy('title')),
@@ -136,8 +144,14 @@ export const useFirestoreSync = () => {
       ),
       onSnapshot(
         query(collection(db, 'notes'), orderBy('createdAt', 'desc')),
-        (snapshot) => dispatch(setNotes(snapshot.docs.map(mapNote))),
-        (error) => dispatch(setError(error.message))
+        (snapshot) => {
+          console.debug('[Firestore] notes snapshot:', snapshot.size, snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+          dispatch(setNotes(snapshot.docs.map(mapNote)))
+        },
+        (error) => {
+          console.error('[Firestore] notes sync error', error)
+          dispatch(setError(error.message))
+        }
       ),
       onSnapshot(
         query(collection(db, 'messages'), orderBy('timestamp', 'desc')),

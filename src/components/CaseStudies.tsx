@@ -1,18 +1,33 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
 import { useAppSelector } from '../hooks/useAppSelector'
+import { useNavigate } from 'react-router-dom'
+import { Calendar, Clock, ArrowRight } from 'lucide-react'
 
 export default function CaseStudies() {
-  const caseStudies = useAppSelector((state) => state.portfolio.caseStudies)
+  const notes = useAppSelector((state) => state.portfolio.notes)
   const isDarkMode = useAppSelector((state) => state.ui.isDarkMode)
-  const [visibleStudies, setVisibleStudies] = useState<Set<string>>(new Set())
-  const [activeCategory, setActiveCategory] = useState<string>('All')
+  const [visibleNotes, setVisibleNotes] = useState<Set<string>>(new Set())
+  
+  const navigate = useNavigate()
   const sectionRef = useRef<HTMLDivElement>(null)
+
+  // Sort notes by latest first and show only 3 for homepage
+  const displayedNotes = useMemo(() => {
+    if (!notes || notes.length === 0) return []
+    
+    // Sort by createdAt (latest first) and take first 3
+    return [...notes].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+      return dateB - dateA
+    }).slice(0, 3)
+  }, [notes])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setVisibleStudies(new Set(caseStudies.map(s => s.id)))
+          setVisibleNotes(new Set(displayedNotes.map(note => note.id)))
         }
       },
       { threshold: 0.1 }
@@ -27,102 +42,144 @@ export default function CaseStudies() {
         observer.unobserve(sectionRef.current)
       }
     }
-  }, [caseStudies])
+  }, [displayedNotes])
 
   return (
-    <section id="field-notes" className={`py-20 px-6 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
-      <div className="max-w-6xl mx-auto">
+    <section id="field-notes" className={`py-20 px-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="text-center mb-16">
-          <h2 
-            className="text-5xl font-bold mb-4"
-            style={{
-              animation: 'slideUp 0.8s ease-out forwards',
-            }}
-          >
+          <h2 className="text-5xl font-bold mb-6">
             Field Notes
           </h2>
-          <p 
-            className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-            style={{
-              animation: 'fadeIn 0.8s ease-out 0.2s forwards',
-              opacity: 0,
-            }}
-          >
+          <p className={`text-xl max-w-3xl mx-auto ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             Notes and solved issues from real work — concise problem/solution writeups
           </p>
         </div>
 
-        {/* Category filter */}
-        <div className="flex items-center gap-3 mb-8 flex-wrap">
-          {['All', ...Array.from(new Set(caseStudies.flatMap(s => s.categories ?? [])))]
-            .map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition ${activeCategory === cat ? 'ring-2 ring-pink-400 bg-pink-50 text-pink-600' : isDarkMode ? 'bg-white/5 text-white' : 'bg-gray-100 text-black'}`}
-              >
-                {cat}
-              </button>
-            ))}
-        </div>
+        {/* Content */}
+        <div ref={sectionRef}>
+          {displayedNotes.length > 0 ? (
+            <>
+              {/* Notes Grid */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+                {displayedNotes.map((note, idx) => {
+                  const isVisible = visibleNotes.has(note.id)
+                  const preview = note.summary ? (note.summary.length > 150 ? note.summary.slice(0, 150) + '...' : note.summary) : 'No summary available'
 
-        <div ref={sectionRef} className="space-y-16">
-          {caseStudies
-            .filter(s => activeCategory === 'All' || (s.categories ?? []).includes(activeCategory))
-            .map((study, index) => (
-            <div 
-              key={study.id} 
-              className={`grid md:grid-cols-2 gap-10 items-center ${index % 2 === 1 ? 'md:grid-flow-dense' : ''}`}
-              style={{
-                animation: visibleStudies.has(study.id) ? `${index % 2 === 0 ? 'slideInLeft' : 'slideInRight'} 0.6s ease-out ${index * 0.2}s forwards` : 'none',
-                opacity: visibleStudies.has(study.id) ? 1 : 0,
-              }}
-            >
-              {/* Image */}
-              <div className={index % 2 === 1 ? 'md:col-start-2' : ''}>
-                <div className={`rounded-2xl overflow-hidden ${isDarkMode ? 'shadow-lg' : 'shadow-soft'}`}>
-                  <img src={study.image} alt={study.title} className="w-full h-80 object-cover hover:scale-105 transition-transform duration-500" />
-                </div>
+                  return (
+                    <article 
+                      key={note.id} 
+                      onClick={() => navigate(`/notes/${note.id}`)}
+                      className={`group cursor-pointer rounded-2xl overflow-hidden transition-all duration-500 transform ${
+                        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+                      } ${
+                        isDarkMode 
+                          ? 'bg-gray-800/50 border border-gray-700/50 hover:bg-gray-800/80 hover:border-gray-600' 
+                          : 'bg-white border border-gray-200 hover:shadow-xl hover:border-gray-300'
+                      }`}
+                      style={{ animationDelay: `${idx * 150}ms` }}
+                    >
+                      {/* Image */}
+                      <div className="relative overflow-hidden h-48">
+                        {note.image ? (
+                          <img 
+                            src={note.image} 
+                            alt={note.title} 
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                          />
+                        ) : (
+                          <div className={`w-full h-full flex items-center justify-center ${
+                            isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800' : 'bg-gradient-to-br from-gray-100 to-gray-200'
+                          }`}>
+                            <div className={`text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                              <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              <p className="text-sm">Field Note</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Date Badge */}
+                        {note.createdAt && (
+                          <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-medium ${
+                            isDarkMode ? 'bg-black/60 text-white' : 'bg-white/90 text-gray-700'
+                          }`}>
+                            {new Date(note.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-6">
+                        <h3 className="text-xl font-bold mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                          {note.title}
+                        </h3>
+                        
+                        <p className={`text-sm leading-relaxed mb-4 line-clamp-3 ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                        }`}>
+                          {preview}
+                        </p>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 opacity-60" />
+                            <span className={`text-xs ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
+                              {note.createdAt ? 
+                                new Date(note.createdAt).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                }) : 
+                                'Recent'
+                              }
+                            </span>
+                          </div>
+                          
+                          <ArrowRight className={`w-4 h-4 transform group-hover:translate-x-1 transition-transform ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`} />
+                        </div>
+                      </div>
+                    </article>
+                  )
+                })}
               </div>
 
-              {/* Content */}
-              <div className="space-y-5">
-                <div className="flex items-center gap-3">
-                  <div className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${isDarkMode ? 'bg-white/15 text-white' : 'bg-black text-white'}`}>
-                    {study.client}
-                  </div>
-                  {/* categories tags */}
-                  <div className="flex gap-2 flex-wrap">
-                    {(study.categories ?? []).map((c) => (
-                      <span key={c} className={`text-sm px-3 py-1 rounded-full ${isDarkMode ? 'bg-white/10 text-white' : 'bg-gray-100 text-black'}`}>
-                        {c}
-                      </span>
-                    ))}
-                  </div>
+              {/* View All Notes Button */}
+              {notes && notes.length > 3 && (
+                <div className="text-center">
+                  <button
+                    onClick={() => navigate('/all-notes')}
+                    className={`inline-flex items-center gap-3 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
+                      isDarkMode
+                        ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-lg hover:shadow-xl'
+                        : 'bg-gray-900 text-white hover:bg-gray-800 shadow-lg hover:shadow-xl'
+                    }`}
+                  >
+                    View All Notes
+                    <ArrowRight className="w-5 h-5" />
+                  </button>
                 </div>
-                <h3 className="text-4xl font-bold">{study.title}</h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold text-base mb-2">Challenge</h4>
-                    <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>{study.challenge}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-base mb-2">Solution</h4>
-                    <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>{study.solution}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-base mb-2">Impact</h4>
-                    <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>{study.impact}</p>
-                  </div>
-                </div>
-
-                <button className={`px-6 py-3 rounded-full font-medium transition-all hover:scale-105 ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}>
-                  Read Full Case Study
-                </button>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-16">
+              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+                isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+              }`}>
+                <Calendar className={`w-8 h-8 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`} />
               </div>
+              <p className={`text-lg ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                No Field Notes available yet.
+              </p>
+              <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                Check back soon for development insights and solutions.
+              </p>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </section>
