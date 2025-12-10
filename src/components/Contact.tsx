@@ -61,8 +61,8 @@ export default function Contact() {
   }
 
   return (
-    <section ref={sectionRef} id="contact" className={`py-20 px-6 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-      <div className="max-w-2xl mx-auto">
+    <section ref={sectionRef} id="contact" className="py-20 px-4 md:px-8 lg:px-12 relative overflow-hidden">
+      <div className="w-full max-w-3xl mx-auto">
         {/* Section Title */}
         <div className="text-center mb-12">
           <h2 
@@ -87,12 +87,39 @@ export default function Contact() {
 
         {/* Contact Form */}
         <div 
-          className={`rounded-2xl p-10 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50 border border-gray-100'}`}
+          className={`relative rounded-2xl p-10 overflow-hidden ${
+            isDarkMode 
+              ? 'bg-white/[0.12] shadow-2xl shadow-black/40'
+              : 'bg-black/[0.08] shadow-2xl shadow-black/20'
+          }`}
           style={{
             animation: isVisible ? 'slideUp 0.6s ease-out 0.3s forwards' : 'none',
             opacity: isVisible ? 1 : 0,
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+            border: isDarkMode 
+              ? '1px solid rgba(255, 255, 255, 0.2)' 
+              : '1px solid rgba(0, 0, 0, 0.12)'
           }}
         >
+          {/* Inner gradient overlay */}
+          <div className={`absolute inset-0 rounded-2xl pointer-events-none ${
+            isDarkMode 
+              ? 'bg-gradient-to-br from-white/[0.1] via-white/[0.05] to-transparent' 
+              : 'bg-gradient-to-br from-white/80 via-white/50 to-white/30'
+          }`} />
+          
+          {/* Inner border shine */}
+          <div 
+            className="absolute inset-0 rounded-2xl pointer-events-none"
+            style={{
+              border: isDarkMode 
+                ? '1px solid rgba(255, 255, 255, 0.15)' 
+                : '1px solid rgba(255, 255, 255, 0.7)'
+            }}
+          />
+          
+          <div className="relative z-10">
           {submitted ? (
             <div className="text-center py-8">
               <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center mx-auto mb-4">
@@ -157,6 +184,7 @@ export default function Contact() {
               </button>
             </form>
           )}
+          </div>
         </div>
 
         {/* Contact Info */}

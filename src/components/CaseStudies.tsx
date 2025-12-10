@@ -11,16 +11,16 @@ export default function CaseStudies() {
   const navigate = useNavigate()
   const sectionRef = useRef<HTMLDivElement>(null)
 
-  // Sort notes by latest first and show only 3 for homepage
+  // Sort notes by latest first and show only 4 for homepage
   const displayedNotes = useMemo(() => {
     if (!notes || notes.length === 0) return []
     
-    // Sort by createdAt (latest first) and take first 3
+    // Sort by createdAt (latest first) and take first 4
     return [...notes].sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
       return dateB - dateA
-    }).slice(0, 3)
+    }).slice(0, 4)
   }, [notes])
 
   useEffect(() => {
@@ -45,8 +45,8 @@ export default function CaseStudies() {
   }, [displayedNotes])
 
   return (
-    <section id="field-notes" className={`py-20 px-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <div className="max-w-7xl mx-auto">
+    <section id="field-notes" className="py-20 px-4 md:px-8 lg:px-12 relative overflow-hidden">
+      <div className="w-full">
         {/* Header */}
         <div className="text-center mb-16">
           <h2 className="text-5xl font-bold mb-6">
@@ -62,7 +62,7 @@ export default function CaseStudies() {
           {displayedNotes.length > 0 ? (
             <>
               {/* Notes Grid */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
                 {displayedNotes.map((note, idx) => {
                   const isVisible = visibleNotes.has(note.id)
                   const preview = note.summary ? (note.summary.length > 150 ? note.summary.slice(0, 150) + '...' : note.summary) : 'No summary available'
@@ -71,15 +71,40 @@ export default function CaseStudies() {
                     <article 
                       key={note.id} 
                       onClick={() => navigate(`/notes/${note.id}`)}
-                      className={`group cursor-pointer rounded-2xl overflow-hidden transition-all duration-500 transform ${
+                      className={`relative group cursor-pointer rounded-2xl overflow-hidden transition-all duration-500 transform ${
                         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
                       } ${
                         isDarkMode 
-                          ? 'bg-gray-800/50 border border-gray-700/50 hover:bg-gray-800/80 hover:border-gray-600' 
-                          : 'bg-white border border-gray-200 hover:shadow-xl hover:border-gray-300'
+                          ? 'bg-white/[0.12] shadow-2xl shadow-black/40'
+                          : 'bg-black/[0.08] shadow-2xl shadow-black/20'
                       }`}
-                      style={{ animationDelay: `${idx * 150}ms` }}
+                      style={{ 
+                        animationDelay: `${idx * 150}ms`,
+                        backdropFilter: 'blur(24px) saturate(180%)',
+                        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                        border: isDarkMode 
+                          ? '1px solid rgba(255, 255, 255, 0.2)' 
+                          : '1px solid rgba(0, 0, 0, 0.12)'
+                      }}
                     >
+                      {/* Inner gradient overlay */}
+                      <div className={`absolute inset-0 rounded-2xl pointer-events-none ${
+                        isDarkMode 
+                          ? 'bg-gradient-to-br from-white/[0.1] via-white/[0.05] to-transparent' 
+                          : 'bg-gradient-to-br from-white/80 via-white/50 to-white/30'
+                      }`} />
+                      
+                      {/* Inner border shine */}
+                      <div 
+                        className="absolute inset-0 rounded-2xl pointer-events-none"
+                        style={{
+                          border: isDarkMode 
+                            ? '1px solid rgba(255, 255, 255, 0.15)' 
+                            : '1px solid rgba(255, 255, 255, 0.7)'
+                        }}
+                      />
+                      
+                      <div className="relative z-10">
                       {/* Image */}
                       <div className="relative overflow-hidden h-48">
                         {note.image ? (
@@ -142,6 +167,7 @@ export default function CaseStudies() {
                             isDarkMode ? 'text-gray-400' : 'text-gray-500'
                           }`} />
                         </div>
+                      </div>
                       </div>
                     </article>
                   )

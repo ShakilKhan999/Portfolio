@@ -40,8 +40,8 @@ export default function Skills() {
   }, [skills])
 
   return (
-    <section ref={sectionRef} className={`py-20 px-6 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
-      <div className="max-w-6xl mx-auto">
+    <section ref={sectionRef} className="py-20 px-4 md:px-8 lg:px-12 relative overflow-hidden">
+      <div className="w-full relative z-10">
         {/* Section Title */}
         <div className="text-center mb-16">
           <h2 
@@ -68,23 +68,47 @@ export default function Skills() {
           {skills.map((skill, index) => (
             <div
               key={skill.id}
-              className={`p-8 rounded-2xl transition-all hover:scale-105 hover:shadow-medium ${
+              className={`relative p-8 rounded-2xl transition-all hover:scale-105 overflow-hidden ${
                 isDarkMode
-                  ? 'bg-gray-700 border border-gray-600 hover:border-gray-500'
-                  : 'bg-white border border-gray-100 hover:border-gray-200'
+                  ? 'bg-white/[0.12] shadow-2xl shadow-black/40'
+                  : 'bg-black/[0.08] shadow-2xl shadow-black/20'
               }`}
               style={{
                 animation: visibleSkills.has(skill.id) ? `scaleIn 0.6s ease-out ${index * 0.1}s forwards` : 'none',
                 opacity: 0,
+                backdropFilter: 'blur(24px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                border: isDarkMode 
+                  ? '1px solid rgba(255, 255, 255, 0.2)' 
+                  : '1px solid rgba(0, 0, 0, 0.12)'
               }}
             >
-              <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-5 ${isDarkMode ? 'bg-white/10 text-white' : 'bg-black text-white'}`}>
-                {iconMap[skill.icon] || <Code2 size={28} />}
+              {/* Inner gradient overlay */}
+              <div className={`absolute inset-0 rounded-2xl pointer-events-none ${
+                isDarkMode 
+                  ? 'bg-gradient-to-br from-white/[0.1] via-white/[0.05] to-transparent' 
+                  : 'bg-gradient-to-br from-white/80 via-white/50 to-white/30'
+              }`} />
+              
+              {/* Inner border shine */}
+              <div 
+                className="absolute inset-0 rounded-2xl pointer-events-none"
+                style={{
+                  border: isDarkMode 
+                    ? '1px solid rgba(255, 255, 255, 0.15)' 
+                    : '1px solid rgba(255, 255, 255, 0.7)'
+                }}
+              />
+              
+              <div className="relative z-10">
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-5 ${isDarkMode ? 'bg-white/10 text-white' : 'bg-black/80 text-white'}`}>
+                  {iconMap[skill.icon] || <Code2 size={28} />}
+                </div>
+                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{skill.title}</h3>
+                <p className={isDarkMode ? 'text-gray-300 text-sm' : 'text-gray-700 text-sm'}>
+                  {skill.description}
+                </p>
               </div>
-              <h3 className="text-xl font-semibold mb-2">{skill.title}</h3>
-              <p className={isDarkMode ? 'text-gray-300 text-sm' : 'text-gray-600 text-sm'}>
-                {skill.description}
-              </p>
             </div>
           ))}
         </div>

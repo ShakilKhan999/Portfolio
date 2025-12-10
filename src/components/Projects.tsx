@@ -5,7 +5,7 @@ import { useAppSelector } from '../hooks/useAppSelector'
 export default function Projects() {
   const projects = useAppSelector((state) => state.portfolio.projects)
   const isDarkMode = useAppSelector((state) => state.ui.isDarkMode)
-  const featuredProjects = projects.filter(p => p.featured)
+  const featuredProjects = projects.filter(p => p.featured).slice(0, 4)
   const [visibleProjects, setVisibleProjects] = useState<Set<string>>(new Set())
   const sectionRef = useRef<HTMLDivElement>(null)
 
@@ -34,8 +34,8 @@ export default function Projects() {
   }, [featuredProjects])
 
   return (
-    <section id="projects" className={`py-20 px-6 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-      <div className="max-w-6xl mx-auto">
+    <section id="projects" className="py-20 px-4 md:px-8 lg:px-12 relative overflow-hidden">
+      <div className="w-full">
         <div className="text-center mb-16">
           <h2 
             className="text-5xl font-bold mb-4"
@@ -56,24 +56,48 @@ export default function Projects() {
           </p>
         </div>
 
-        <div ref={sectionRef} className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div ref={sectionRef} className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {featuredProjects.map((project, index) => (
             <div
               key={project.id}
-              className={`rounded-2xl overflow-hidden transition-all hover:scale-105 hover:shadow-lg ${
-                isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-100'
+              className={`relative rounded-2xl overflow-hidden transition-all hover:scale-105 ${
+                isDarkMode 
+                  ? 'bg-white/[0.12] shadow-2xl shadow-black/40'
+                  : 'bg-black/[0.08] shadow-2xl shadow-black/20'
               }`}
               style={{
                 animation: visibleProjects.has(project.id) ? `slideInRight 0.6s ease-out ${index * 0.1}s forwards` : 'none',
                 opacity: visibleProjects.has(project.id) ? 1 : 0,
+                backdropFilter: 'blur(24px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                border: isDarkMode 
+                  ? '1px solid rgba(255, 255, 255, 0.2)' 
+                  : '1px solid rgba(0, 0, 0, 0.12)'
               }}
             >
-              {/* Image */}
-              <div className="relative overflow-hidden h-48">
+              {/* Inner gradient overlay */}
+              <div className={`absolute inset-0 rounded-2xl pointer-events-none ${
+                isDarkMode 
+                  ? 'bg-gradient-to-br from-white/[0.1] via-white/[0.05] to-transparent' 
+                  : 'bg-gradient-to-br from-white/80 via-white/50 to-white/30'
+              }`} />
+              
+              {/* Inner border shine */}
+              <div 
+                className="absolute inset-0 rounded-2xl pointer-events-none"
+                style={{
+                  border: isDarkMode 
+                    ? '1px solid rgba(255, 255, 255, 0.15)' 
+                    : '1px solid rgba(255, 255, 255, 0.7)'
+                }}
+              />
+              <div className="relative z-10">
+                {/* Image */}
+                <div className="relative overflow-hidden h-56">
                 <img
                   src={project.image}
                   alt={project.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                  className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                 />
                 {(project.appStore || project.playStore) && (
                   <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold ${isDarkMode ? 'bg-white/20 text-white' : 'bg-black text-white'}`}>
@@ -146,6 +170,7 @@ export default function Projects() {
                     </a>
                   )}
                 </div>
+              </div>
               </div>
             </div>
           ))}

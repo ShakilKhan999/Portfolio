@@ -10,6 +10,7 @@ import Contact from './components/Contact'
 import Footer from './components/Footer'
 import AdminDashboard from './components/AdminDashboard'
 import ParticleField from './components/ParticleField'
+import GlassBackground from './components/GlassBackground'
 import NotePage from './components/NotePage'
 import AllNotesPage from './components/AllNotesPage'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
@@ -126,11 +127,14 @@ export default function App() {
     return <AdminDashboard onClose={() => setShowAdmin(false)} />
   }
   const Layout = ({ children }: { children: React.ReactNode }) => (
-    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-black'}`}>
-      <ParticleField />
-      <Navigation onAdminAccess={() => setShowAdmin(true)} />
-      {children}
-      <Footer />
+    <div className={`min-h-screen transition-colors duration-300 relative ${isDarkMode ? 'bg-black text-white' : 'bg-white text-black'}`}>
+      <GlassBackground variant="hero" />
+      <div className="relative z-10">
+        <ParticleField />
+        <Navigation onAdminAccess={() => setShowAdmin(true)} />
+        {children}
+        <Footer />
+      </div>
     </div>
   )
 

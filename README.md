@@ -20,8 +20,9 @@ A modern, Apple-inspired portfolio website for Shakil Khan - Flutter Developer w
 # Install dependencies
 npm install
 
-# Create .env.local with Firebase config
-cp .env.example .env.local
+# Create .env file with Firebase config
+cp .env.example .env
+# Then edit .env and add your Firebase credentials
 
 # Start development server
 npm run dev
@@ -39,7 +40,7 @@ npm run preview
 
 1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
 2. Copy your config credentials
-3. Update `.env.local` with your Firebase credentials
+3. Create `.env` file from `.env.example` and update with your Firebase credentials
 4. Enable Email/Password authentication
 5. Create Firestore database
 
