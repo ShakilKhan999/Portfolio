@@ -140,9 +140,9 @@ export default function Contact() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className={`w-full px-5 py-3 rounded-xl transition-all ${
                       isDarkMode
-                        ? 'bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:border-white'
-                        : 'bg-white border border-gray-300 text-black focus:border-gray-900'
-                    } focus:outline-none focus:ring-1 ${isDarkMode ? 'focus:ring-white' : 'focus:ring-gray-900'}`}
+                        ? 'bg-white/[0.08] border border-white/20 text-white placeholder-gray-400 focus:border-white/40'
+                        : 'bg-black/[0.05] border border-black/10 text-black placeholder-gray-500 focus:border-black/20'
+                    } focus:outline-none focus:ring-1 ${isDarkMode ? 'focus:ring-white/40' : 'focus:ring-black/20'}`}
                 />
               </div>
               <div>
@@ -153,9 +153,9 @@ export default function Contact() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className={`w-full px-5 py-3 rounded-xl transition-all ${
                       isDarkMode
-                        ? 'bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:border-white'
-                        : 'bg-white border border-gray-300 text-black focus:border-gray-900'
-                    } focus:outline-none focus:ring-1 ${isDarkMode ? 'focus:ring-white' : 'focus:ring-gray-900'}`}
+                        ? 'bg-white/[0.08] border border-white/20 text-white placeholder-gray-400 focus:border-white/40'
+                        : 'bg-black/[0.05] border border-black/10 text-black placeholder-gray-500 focus:border-black/20'
+                    } focus:outline-none focus:ring-1 ${isDarkMode ? 'focus:ring-white/40' : 'focus:ring-black/20'}`}
                 />
               </div>
               <div>
@@ -166,9 +166,9 @@ export default function Contact() {
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   className={`w-full px-5 py-3 rounded-xl transition-all resize-none ${
                       isDarkMode
-                        ? 'bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:border-white'
-                        : 'bg-white border border-gray-300 text-black focus:border-gray-900'
-                    } focus:outline-none focus:ring-1 ${isDarkMode ? 'focus:ring-white' : 'focus:ring-gray-900'}`}
+                        ? 'bg-white/[0.08] border border-white/20 text-white placeholder-gray-400 focus:border-white/40'
+                        : 'bg-black/[0.05] border border-black/10 text-black placeholder-gray-500 focus:border-black/20'
+                    } focus:outline-none focus:ring-1 ${isDarkMode ? 'focus:ring-white/40' : 'focus:ring-black/20'}`}
                 />
               </div>
               <button

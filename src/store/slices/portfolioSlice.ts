@@ -41,6 +41,30 @@ export interface ResearchNote {
   status?: 'failed' | 'normal'
 }
 
+export interface AboutMe {
+  id: string
+  title: string
+  bio: string
+  image?: string
+  highlights: string[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface Experience {
+  id: string
+  company: string
+  position: string
+  location?: string
+  startDate: string
+  endDate?: string
+  description: string
+  technologies: string[]
+  logo?: string
+  current: boolean
+  createdAt: number
+}
+
 const defaultProjects: Project[] = [
   {
     id: '1',
@@ -176,6 +200,8 @@ export interface PortfolioState {
   caseStudies: CaseStudy[]
   skills: Skill[]
   notes: ResearchNote[]
+  aboutMe: AboutMe | null
+  experiences: Experience[]
   loading: boolean
   error: string | null
 }
@@ -185,6 +211,8 @@ const initialState: PortfolioState = {
   caseStudies: defaultCaseStudies,
   skills: defaultSkills,
   notes: [],
+  aboutMe: null,
+  experiences: [],
   loading: false,
   error: null,
 }
@@ -259,6 +287,27 @@ const portfolioSlice = createSlice({
     deleteNote: (state, action: PayloadAction<string>) => {
       state.notes = state.notes.filter((note) => note.id !== action.payload)
     },
+    setAboutMe: (state, action: PayloadAction<AboutMe | null>) => {
+      state.aboutMe = action.payload
+    },
+    updateAboutMe: (state, action: PayloadAction<AboutMe>) => {
+      state.aboutMe = action.payload
+    },
+    setExperiences: (state, action: PayloadAction<Experience[]>) => {
+      state.experiences = action.payload
+    },
+    addExperience: (state, action: PayloadAction<Experience>) => {
+      state.experiences.unshift(action.payload)
+    },
+    updateExperience: (state, action: PayloadAction<Experience>) => {
+      const index = state.experiences.findIndex(exp => exp.id === action.payload.id)
+      if (index !== -1) {
+        state.experiences[index] = action.payload
+      }
+    },
+    deleteExperience: (state, action: PayloadAction<string>) => {
+      state.experiences = state.experiences.filter(exp => exp.id !== action.payload)
+    },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload
     },
@@ -285,6 +334,12 @@ export const {
   addNote,
   updateNote,
   deleteNote,
+  setAboutMe,
+  updateAboutMe,
+  setExperiences,
+  addExperience,
+  updateExperience,
+  deleteExperience,
   setLoading,
   setError,
 } = portfolioSlice.actions

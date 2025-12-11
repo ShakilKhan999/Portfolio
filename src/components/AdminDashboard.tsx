@@ -9,7 +9,7 @@ import type { RootState } from '../store'
 import { auth, db } from '../config/firebase'
 import { loginSuccess, loginError, logout as logoutAction, setLoading as setAuthLoading } from '../store/slices/authSlice'
 import { ContactMessage } from '../store/slices/contactSlice'
-import { CaseStudy, Project, ResearchNote, Skill } from '../store/slices/portfolioSlice'
+import { AboutMe, CaseStudy, Experience, Project, ResearchNote, Skill } from '../store/slices/portfolioSlice'
 
 interface AdminDashboardProps {
   onClose: () => void
@@ -55,6 +55,14 @@ interface NoteFormState {
   status?: 'failed' | 'normal'
 }
 
+interface AboutMeFormState {
+  id: string
+  title: string
+  bio: string
+  image: string
+  highlights: string
+}
+
 const emptyProjectForm: ProjectFormState = {
   id: '',
   title: '',
@@ -95,6 +103,40 @@ const emptyNoteForm: NoteFormState = {
   status: 'normal',
 }
 
+const emptyAboutMeForm: AboutMeFormState = {
+  id: '',
+  title: 'About Me',
+  bio: '',
+  image: '',
+  highlights: '',
+}
+
+interface ExperienceFormState {
+  id: string
+  company: string
+  position: string
+  location: string
+  startDate: string
+  endDate: string
+  description: string
+  technologies: string
+  logo: string
+  current: boolean
+}
+
+const emptyExperienceForm: ExperienceFormState = {
+  id: '',
+  company: '',
+  position: '',
+  location: '',
+  startDate: '',
+  endDate: '',
+  description: '',
+  technologies: '',
+  logo: '',
+  current: false,
+}
+
 // Note: Firebase Storage upload helpers removed because the project was not using a provisioned bucket.
 // Admins should paste external image/asset URLs into the image fields instead.
 
@@ -105,6 +147,8 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const projects = useAppSelector((state: RootState) => state.portfolio.projects)
   const skills = useAppSelector((state: RootState) => state.portfolio.skills)
   const notes = useAppSelector((state: RootState) => state.portfolio.notes)
+  const aboutMe = useAppSelector((state: RootState) => state.portfolio.aboutMe)
+  const experiences = useAppSelector((state: RootState) => state.portfolio.experiences)
   const contactMessages = useAppSelector((state: RootState) => state.contact.messages)
 
   const unreadMessagesCount = useMemo(
@@ -112,7 +156,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     [contactMessages]
   )
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'skills' | 'notes' | 'messages'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'skills' | 'experience' | 'notes' | 'aboutme' | 'messages'>('overview')
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
 
@@ -133,6 +177,13 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const [noteFormState, setNoteFormState] = useState<'hidden' | 'create' | 'edit'>('hidden')
   const [noteForm, setNoteForm] = useState<NoteFormState>(emptyNoteForm)
   const [noteSaving, setNoteSaving] = useState(false)
+
+  const [aboutMeForm, setAboutMeForm] = useState<AboutMeFormState>(emptyAboutMeForm)
+  const [aboutMeSaving, setAboutMeSaving] = useState(false)
+
+  const [experienceFormState, setExperienceFormState] = useState<'hidden' | 'create' | 'edit'>('hidden')
+  const [experienceForm, setExperienceForm] = useState<ExperienceFormState>(emptyExperienceForm)
+  const [experienceSaving, setExperienceSaving] = useState(false)
   
   // CV (Drive link) management
   const [cvLink, setCvLink] = useState('')
@@ -558,6 +609,139 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     }
   }
 
+  // AboutMe handlers
+  React.useEffect(() => {
+    if (aboutMe) {
+      setAboutMeForm({
+        id: aboutMe.id,
+        title: aboutMe.title,
+        bio: aboutMe.bio,
+        image: aboutMe.image || '',
+        highlights: aboutMe.highlights.join('\n'),
+      })
+    }
+  }, [aboutMe])
+
+  const upsertAboutMe = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!aboutMeForm.title.trim() || !aboutMeForm.bio.trim()) {
+      alert('Title and bio are required')
+      return
+    }
+    setAboutMeSaving(true)
+    try {
+      const normalizedImage = normalizeExternalUrl(aboutMeForm.image.trim())
+      const payload: any = {
+        title: aboutMeForm.title.trim(),
+        bio: aboutMeForm.bio.trim(),
+        image: normalizedImage || '',
+        highlights: aboutMeForm.highlights
+          .split('\n')
+          .map(h => h.trim())
+          .filter(h => h.length > 0),
+        createdAt: aboutMe?.createdAt ?? Date.now(),
+        updatedAt: Date.now(),
+      }
+      
+      if (aboutMe?.id) {
+        await updateDoc(doc(db, 'aboutMe', aboutMe.id), payload)
+      } else {
+        await addDoc(collection(db, 'aboutMe'), payload)
+      }
+      alert('About Me saved successfully!')
+    } catch (error) {
+      console.error(error)
+      alert('Unable to save About Me')
+    } finally {
+      setAboutMeSaving(false)
+    }
+  }
+
+  // Experience handlers
+  const resetExperienceForm = () => {
+    setExperienceForm({ ...emptyExperienceForm })
+    setExperienceFormState('hidden')
+  }
+
+  const openExperienceForm = (mode: 'create' | 'edit', experience?: Experience) => {
+    if (mode === 'edit' && experience) {
+      setExperienceForm({
+        id: experience.id,
+        company: experience.company,
+        position: experience.position,
+        location: experience.location || '',
+        startDate: experience.startDate,
+        endDate: experience.endDate || '',
+        description: experience.description,
+        technologies: experience.technologies.join(', '),
+        logo: experience.logo || '',
+        current: experience.current,
+      })
+    } else {
+      setExperienceForm({ ...emptyExperienceForm })
+    }
+    setExperienceFormState(mode)
+  }
+
+  const upsertExperience = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!experienceForm.company.trim() || !experienceForm.position.trim() || !experienceForm.startDate) {
+      alert('Company, position, and start date are required')
+      return
+    }
+    setExperienceSaving(true)
+    try {
+      const payload: any = {
+        company: experienceForm.company.trim(),
+        position: experienceForm.position.trim(),
+        startDate: experienceForm.startDate,
+        description: experienceForm.description.trim(),
+        technologies: experienceForm.technologies.split(',').map(t => t.trim()).filter(t => t.length > 0),
+        current: experienceForm.current,
+      }
+
+      // Only add optional fields if they have values
+      if (experienceForm.location.trim()) {
+        payload.location = experienceForm.location.trim()
+      }
+      
+      if (!experienceForm.current && experienceForm.endDate) {
+        payload.endDate = experienceForm.endDate
+      }
+      
+      const normalizedLogo = normalizeExternalUrl(experienceForm.logo.trim())
+      if (normalizedLogo) {
+        payload.logo = normalizedLogo
+      }
+
+      if (experienceFormState === 'create') {
+        payload.createdAt = Date.now()
+      }
+
+      if (experienceFormState === 'edit' && experienceForm.id) {
+        await updateDoc(doc(db, 'experiences', experienceForm.id), payload)
+      } else {
+        await addDoc(collection(db, 'experiences'), payload)
+      }
+      resetExperienceForm()
+    } catch (error) {
+      console.error(error)
+      alert('Unable to save experience')
+    } finally {
+      setExperienceSaving(false)
+    }
+  }
+
+  const removeExperience = async (id: string) => {
+    if (!window.confirm('Delete this experience?')) return
+    try {
+      await deleteDoc(doc(db, 'experiences', id))
+    } catch (error) {
+      console.error(error)
+      alert('Failed to delete experience')
+    }
+  }
+
   if (!authState.isAuthenticated) {
     return (
       <div className={`min-h-screen flex items-center justify-center px-6 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
@@ -631,7 +815,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
 
       <div className="max-w-6xl mx-auto p-6 space-y-6">
         <div className="flex gap-2 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
-          {['overview', 'projects', 'skills', 'notes', 'messages'].map((tab) => (
+          {['overview', 'projects', 'skills', 'experience', 'aboutme', 'notes', 'messages'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as typeof activeTab)}
@@ -951,6 +1135,193 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'experience' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Manage Experience</h2>
+              <button
+                onClick={() => openExperienceForm('create')}
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${
+                  isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'
+                }`}
+              >
+                <Plus size={16} /> Add Experience
+              </button>
+            </div>
+
+            {experienceFormState !== 'hidden' && (
+              <form onSubmit={upsertExperience} className={`p-5 rounded-2xl ${cardClasses} space-y-4`}>
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold">{experienceFormState === 'edit' ? 'Edit Experience' : 'New Experience'}</h3>
+                  <button type="button" onClick={resetExperienceForm} className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-200">
+                    Cancel
+                  </button>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <input className={inputClasses} placeholder="Company" value={experienceForm.company} onChange={(e) => setExperienceForm({ ...experienceForm, company: e.target.value })} required />
+                  <input className={inputClasses} placeholder="Position" value={experienceForm.position} onChange={(e) => setExperienceForm({ ...experienceForm, position: e.target.value })} required />
+                  <input className={inputClasses} placeholder="Location (optional)" value={experienceForm.location} onChange={(e) => setExperienceForm({ ...experienceForm, location: e.target.value })} />
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id="current" checked={experienceForm.current} onChange={(e) => setExperienceForm({ ...experienceForm, current: e.target.checked })} className="w-4 h-4" />
+                    <label htmlFor="current" className="text-sm">Currently working here</label>
+                  </div>
+                  <input type="date" className={inputClasses} placeholder="Start Date" value={experienceForm.startDate} onChange={(e) => setExperienceForm({ ...experienceForm, startDate: e.target.value })} required />
+                  {!experienceForm.current && (
+                    <input type="date" className={inputClasses} placeholder="End Date" value={experienceForm.endDate} onChange={(e) => setExperienceForm({ ...experienceForm, endDate: e.target.value })} />
+                  )}
+                </div>
+                <textarea className={`${inputClasses} min-h-[100px]`} placeholder="Description" value={experienceForm.description} onChange={(e) => setExperienceForm({ ...experienceForm, description: e.target.value })} required />
+                <input className={inputClasses} placeholder="Technologies (comma separated)" value={experienceForm.technologies} onChange={(e) => setExperienceForm({ ...experienceForm, technologies: e.target.value })} />
+                <input className={inputClasses} placeholder="Company logo URL (optional)" value={experienceForm.logo} onChange={(e) => setExperienceForm({ ...experienceForm, logo: e.target.value })} />
+                <button type="submit" className={`px-4 py-2 rounded-lg ${isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'}`}>
+                  {experienceSaving ? 'Saving…' : 'Save Experience'}
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-4">
+              {experiences.map((exp) => (
+                <div key={exp.id} className={`p-5 rounded-xl border transition ${isDarkMode ? 'border-gray-700 bg-gray-900/30' : 'border-gray-200 bg-gray-50'}`}>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-lg">{exp.position}</h3>
+                        {exp.current && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isDarkMode ? 'bg-white text-black' : 'bg-black text-white'}`}>
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium mb-2">{exp.company}</p>
+                      <p className="text-xs text-gray-500 mb-2">
+                        {new Date(exp.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - {exp.endDate ? new Date(exp.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Present'}
+                        {exp.location && ` • ${exp.location}`}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{exp.description}</p>
+                      {exp.technologies.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {exp.technologies.map((tech, idx) => (
+                            <span key={idx} className={`px-2 py-0.5 rounded text-xs ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => openExperienceForm('edit', exp)} className={`p-2 rounded-lg transition ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'}`}>
+                        <Edit2 size={14} />
+                      </button>
+                      <button onClick={() => removeExperience(exp.id)} className={`p-2 rounded-lg transition ${isDarkMode ? 'text-red-400 bg-red-900/20 hover:bg-red-900/40' : 'text-red-600 bg-red-100 hover:bg-red-200'}`}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'aboutme' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Manage About Me</h2>
+            </div>
+
+            <form onSubmit={upsertAboutMe} className={`p-5 rounded-2xl ${cardClasses} space-y-4`}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Section Title</label>
+                  <input
+                    className={inputClasses}
+                    placeholder="About Me"
+                    value={aboutMeForm.title}
+                    onChange={(e) => setAboutMeForm({ ...aboutMeForm, title: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Bio</label>
+                  <textarea
+                    className={`${inputClasses} min-h-[150px]`}
+                    placeholder="Write your professional bio..."
+                    value={aboutMeForm.bio}
+                    onChange={(e) => setAboutMeForm({ ...aboutMeForm, bio: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Profile Image URL (optional)</label>
+                  <input
+                    className={inputClasses}
+                    placeholder="Paste image URL"
+                    value={aboutMeForm.image}
+                    onChange={(e) => setAboutMeForm({ ...aboutMeForm, image: e.target.value })}
+                  />
+                  {aboutMeForm.image && (
+                    <div className="mt-3">
+                      <img src={normalizeExternalUrl(aboutMeForm.image)} alt="Preview" className="w-32 h-32 object-cover rounded-lg" />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Highlights (one per line)</label>
+                  <textarea
+                    className={`${inputClasses} min-h-[120px]`}
+                    placeholder="5+ years of Flutter development&#10;Published apps with 100K+ downloads&#10;Expert in Firebase and REST APIs"
+                    value={aboutMeForm.highlights}
+                    onChange={(e) => setAboutMeForm({ ...aboutMeForm, highlights: e.target.value })}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Each line will become a separate highlight point</p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={aboutMeSaving}
+                  className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                    isDarkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-900'
+                  } disabled:opacity-50`}
+                >
+                  {aboutMeSaving ? 'Saving...' : 'Save About Me'}
+                </button>
+              </div>
+            </form>
+
+            {aboutMe && (
+              <div className={`p-5 rounded-2xl ${cardClasses}`}>
+                <h3 className="text-lg font-semibold mb-4">Current About Me Content</h3>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs uppercase text-gray-500 mb-1">Title</p>
+                    <p className="font-medium">{aboutMe.title}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase text-gray-500 mb-1">Bio</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{aboutMe.bio}</p>
+                  </div>
+                  {aboutMe.highlights.length > 0 && (
+                    <div>
+                      <p className="text-xs uppercase text-gray-500 mb-2">Highlights</p>
+                      <ul className="space-y-1">
+                        {aboutMe.highlights.map((highlight, index) => (
+                          <li key={index} className="text-sm flex items-start gap-2">
+                            <Check size={16} className="text-green-500 mt-0.5 flex-shrink-0" />
+                            <span>{highlight}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

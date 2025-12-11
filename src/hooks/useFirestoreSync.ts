@@ -15,10 +15,14 @@ import {
   CaseStudy,
   Skill,
   ResearchNote,
+  AboutMe,
+  Experience,
   setProjects,
   setCaseStudies,
   setSkills,
   setNotes,
+  setAboutMe,
+  setExperiences,
   setLoading,
   setError,
 } from '../store/slices/portfolioSlice'
@@ -104,6 +108,36 @@ const mapMessage = (doc: QueryDocumentSnapshot<DocumentData>): ContactMessage =>
   }
 }
 
+const mapAboutMe = (doc: QueryDocumentSnapshot<DocumentData>): AboutMe => {
+  const data = doc.data() as Partial<AboutMe>
+  return {
+    id: doc.id,
+    title: data.title ?? 'About Me',
+    bio: data.bio ?? '',
+    image: data.image,
+    highlights: Array.isArray(data.highlights) ? data.highlights : [],
+    createdAt: toMillis(data.createdAt),
+    updatedAt: toMillis(data.updatedAt),
+  }
+}
+
+const mapExperience = (doc: QueryDocumentSnapshot<DocumentData>): Experience => {
+  const data = doc.data() as Partial<Experience>
+  return {
+    id: doc.id,
+    company: data.company ?? 'Company',
+    position: data.position ?? 'Position',
+    location: data.location,
+    startDate: data.startDate ?? new Date().toISOString(),
+    endDate: data.endDate,
+    description: data.description ?? '',
+    technologies: Array.isArray(data.technologies) ? data.technologies : [],
+    logo: data.logo,
+    current: Boolean(data.current),
+    createdAt: toMillis(data.createdAt),
+  }
+}
+
 export const useFirestoreSync = () => {
   const dispatch = useDispatch<AppDispatch>()
   const isFirebaseConfigured = Boolean(import.meta.env.VITE_FIREBASE_PROJECT_ID)
@@ -157,6 +191,33 @@ export const useFirestoreSync = () => {
         query(collection(db, 'messages'), orderBy('timestamp', 'desc')),
         (snapshot) => dispatch(setMessages(snapshot.docs.map(mapMessage))),
         (error) => console.error('Failed to sync messages', error)
+      ),
+      onSnapshot(
+        collection(db, 'aboutMe'),
+        (snapshot) => {
+          console.debug('[Firestore] aboutMe snapshot:', snapshot.size)
+          const aboutMeDoc = snapshot.docs[0]
+          if (aboutMeDoc) {
+            dispatch(setAboutMe(mapAboutMe(aboutMeDoc)))
+          } else {
+            dispatch(setAboutMe(null))
+          }
+        },
+        (error) => {
+          console.error('[Firestore] aboutMe sync error', error)
+          dispatch(setError(error.message))
+        }
+      ),
+      onSnapshot(
+        query(collection(db, 'experiences'), orderBy('startDate', 'desc')),
+        (snapshot) => {
+          console.debug('[Firestore] experiences snapshot:', snapshot.size)
+          dispatch(setExperiences(snapshot.docs.map(mapExperience)))
+        },
+        (error) => {
+          console.error('[Firestore] experiences sync error', error)
+          dispatch(setError(error.message))
+        }
       ),
     ]
 

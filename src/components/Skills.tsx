@@ -64,20 +64,21 @@ export default function Skills() {
         </div>
 
         {/* Skills Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {skills.map((skill, index) => (
-            <div
-              key={skill.id}
-              className={`relative p-8 rounded-2xl transition-all hover:scale-105 overflow-hidden ${
-                isDarkMode
-                  ? 'bg-white/[0.12] shadow-2xl shadow-black/40'
-                  : 'bg-black/[0.08] shadow-2xl shadow-black/20'
-              }`}
-              style={{
-                animation: visibleSkills.has(skill.id) ? `scaleIn 0.6s ease-out ${index * 0.1}s forwards` : 'none',
-                opacity: 0,
-                backdropFilter: 'blur(24px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        <div className="max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6">
+            {skills.map((skill, index) => (
+              <div
+                key={skill.id}
+                className={`relative p-6 rounded-2xl transition-all hover:scale-105 overflow-hidden ${
+                  isDarkMode
+                    ? 'bg-white/[0.12] shadow-2xl shadow-black/40'
+                    : 'bg-black/[0.08] shadow-2xl shadow-black/20'
+                }`}
+                style={{
+                  animation: visibleSkills.has(skill.id) ? `scaleIn 0.6s ease-out ${index * 0.1}s forwards` : 'none',
+                  opacity: 0,
+                  backdropFilter: 'blur(24px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(24px) saturate(180%)',
                 border: isDarkMode 
                   ? '1px solid rgba(255, 255, 255, 0.2)' 
                   : '1px solid rgba(0, 0, 0, 0.12)'
@@ -100,17 +101,18 @@ export default function Skills() {
                 }}
               />
               
-              <div className="relative z-10">
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-5 ${isDarkMode ? 'bg-white/10 text-white' : 'bg-black/80 text-white'}`}>
-                  {iconMap[skill.icon] || <Code2 size={28} />}
+              <div className="relative z-10 text-center">
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 mx-auto ${isDarkMode ? 'bg-white/10 text-white' : 'bg-black/80 text-white'}`}>
+                  {iconMap[skill.icon] || <Code2 size={24} />}
                 </div>
-                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{skill.title}</h3>
-                <p className={isDarkMode ? 'text-gray-300 text-sm' : 'text-gray-700 text-sm'}>
+                <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{skill.title}</h3>
+                <p className={`${isDarkMode ? 'text-gray-300 text-xs' : 'text-gray-700 text-xs'}`}>
                   {skill.description}
                 </p>
               </div>
-            </div>
-          ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

@@ -65,7 +65,7 @@ export default function Footer() {
 
         {/* Bottom */}
         <div className={`border-t pt-8 text-center text-sm ${isDarkMode ? 'border-gray-800 text-gray-400' : 'border-gray-100 text-gray-600'}`}>
-          <p>© {currentYear} Shakil Khan. All rights reserved. Built with React, Tailwind CSS, Three.js, and Redux.</p>
+          <p>© {currentYear} Shakil Khan. All rights reserved.</p>
         </div>
       </div>
     </footer>
