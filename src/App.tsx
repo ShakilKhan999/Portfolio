@@ -18,6 +18,8 @@ import AllNotesPage from './components/AllNotesPage'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useFirestoreSync } from './hooks/useFirestoreSync'
 import { RootState } from './store'
+import { doc, setDoc, getDoc, increment } from 'firebase/firestore'
+import { db } from './config/firebase'
 
 export default function App() {
   const isDarkMode = useAppSelector((state: RootState) => state.ui.isDarkMode)
@@ -25,6 +27,32 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useFirestoreSync()
+
+  // Track visitor count
+  useEffect(() => {
+    const trackVisit = async () => {
+      try {
+        const analyticsRef = doc(db, 'analytics', 'siteStats')
+        const analyticsSnap = await getDoc(analyticsRef)
+        
+        if (analyticsSnap.exists()) {
+          await setDoc(analyticsRef, {
+            totalVisits: increment(1),
+            lastVisit: Date.now()
+          }, { merge: true })
+        } else {
+          await setDoc(analyticsRef, {
+            totalVisits: 1,
+            lastVisit: Date.now()
+          })
+        }
+      } catch (error) {
+        console.error('Failed to track visit:', error)
+      }
+    }
+    
+    trackVisit()
+  }, [])
 
   // Apply dark mode to document
   useEffect(() => {

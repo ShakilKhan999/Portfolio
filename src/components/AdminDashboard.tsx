@@ -191,6 +191,9 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   // Profile image management
   const [profileImage, setProfileImage] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
+  
+  // Analytics
+  const [totalVisits, setTotalVisits] = useState<number>(0)
 
   const inputClasses = isDarkMode
     ? 'w-full px-4 py-2 rounded-lg border border-gray-800 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-white'
@@ -263,6 +266,28 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       }
     }
     fetchMeta()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  // Fetch analytics data
+  React.useEffect(() => {
+    let mounted = true
+    const fetchAnalytics = async () => {
+      try {
+        const analyticsRef = doc(db, 'analytics', 'siteStats')
+        const analyticsSnap = await getDoc(analyticsRef)
+        if (!mounted) return
+        if (analyticsSnap.exists()) {
+          const data = analyticsSnap.data()
+          setTotalVisits(data.totalVisits ?? 0)
+        }
+      } catch (err) {
+        console.error('Failed to load analytics:', err)
+      }
+    }
+    fetchAnalytics()
     return () => {
       mounted = false
     }
@@ -834,6 +859,11 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
 
         {activeTab === 'overview' && (
           <div className="grid md:grid-cols-4 gap-4">
+            <div className={`p-5 rounded-2xl ${cardClasses}`}>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Total Visits</p>
+              <p className="text-3xl font-semibold mt-1">{totalVisits.toLocaleString()}</p>
+            </div>
+            
             <div className={`p-5 rounded-2xl ${cardClasses}`}>
               <p className="text-xs uppercase tracking-wide text-gray-500">Projects</p>
               <p className="text-3xl font-semibold mt-1">{projects.length}</p>
