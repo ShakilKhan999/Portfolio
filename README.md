@@ -197,7 +197,6 @@ Drag & drop the `dist` folder to Netlify
 
 ## 📄 License
 
-MIT License - Feel free to use for your own portfolio
 
 ## 🙏 Credits
 
