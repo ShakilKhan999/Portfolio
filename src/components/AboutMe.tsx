@@ -9,25 +9,33 @@ export default function AboutMe() {
   const sectionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true)
-        }
-      },
-      { threshold: 0.1 }
-    )
+    const target = sectionRef.current
+    if (!target) return undefined
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current)
-    }
-
-    return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current)
+    const handleIntersect = ([entry]: IntersectionObserverEntry[]) => {
+      if (entry.isIntersecting) {
+        setIsVisible(true)
+        observer.disconnect()
       }
     }
-  }, [])
+
+    const observer = new IntersectionObserver(handleIntersect, { threshold: 0.1 })
+    observer.observe(target)
+
+    const checkInView = () => {
+      const rect = target.getBoundingClientRect()
+      if (rect.top < window.innerHeight && rect.bottom > 0) {
+        setIsVisible(true)
+        observer.disconnect()
+      }
+    }
+
+    checkInView()
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [aboutMe])
 
   if (!aboutMe) return null
 

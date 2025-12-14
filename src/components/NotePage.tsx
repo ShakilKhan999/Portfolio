@@ -1,6 +1,7 @@
 import React, { useLayoutEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAppSelector } from '../hooks/useAppSelector'
+import MarkdownRenderer from './MarkdownRenderer'
 
 export default function NotePage() {
   const { id } = useParams()
@@ -27,6 +28,18 @@ export default function NotePage() {
   }
 
   const created = note.createdAt ? new Date(note.createdAt).toLocaleString() : ''
+
+  const headingClass = (level: number) => {
+    const sizeClass =
+      level === 1
+        ? 'text-3xl mb-6 mt-8'
+        : level === 2
+          ? 'text-2xl mb-4 mt-6'
+          : level === 3
+            ? 'text-xl mb-3 mt-4'
+            : 'text-lg mb-2 mt-3'
+    return `${sizeClass} ${isDarkMode ? 'text-white' : 'text-gray-900'} font-bold`
+  }
 
   return (
     <section className={`min-h-screen pt-24 pb-16 px-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-black'}`}>
@@ -61,121 +74,15 @@ export default function NotePage() {
 
             <article className="article-content space-y-6">
               {note.summary ? (
-                note.summary.split('\n').map((paragraph: string, index: number) => {
-                  // Skip empty lines
-                  if (!paragraph.trim()) return null;
-                  
-                  // Handle headers (lines starting with #)
-                  if (paragraph.startsWith('#')) {
-                    const level = paragraph.match(/^#+/)?.[0].length || 1;
-                    const text = paragraph.replace(/^#+\s*/, '');
-                    const HeaderTag = `h${Math.min(level + 1, 6)}` as keyof JSX.IntrinsicElements;
-                    
-                    return (
-                      <HeaderTag
-                        key={index}
-                        className={`font-bold ${
-                          level === 1 ? 'text-3xl mb-6 mt-8' :
-                          level === 2 ? 'text-2xl mb-4 mt-6' :
-                          level === 3 ? 'text-xl mb-3 mt-4' :
-                          'text-lg mb-2 mt-3'
-                        } ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                      >
-                        {text}
-                      </HeaderTag>
-                    );
-                  }
-                  
-                  // Handle code blocks (lines starting with multiple spaces or tabs)
-                  if (paragraph.match(/^\s{4,}/) || paragraph.startsWith('\t')) {
-                    return (
-                      <pre
-                        key={index}
-                        className={`p-4 rounded-lg overflow-x-auto text-sm font-mono ${
-                          isDarkMode 
-                            ? 'bg-gray-800 text-green-400 border border-gray-700' 
-                            : 'bg-gray-100 text-gray-800 border border-gray-200'
-                        }`}
-                      >
-                        <code>{paragraph.trim()}</code>
-                      </pre>
-                    );
-                  }
-                  
-                  // Handle numbered lists (lines starting with numbers)
-                  if (paragraph.match(/^\d+\.\s/)) {
-                    return (
-                      <div
-                        key={index}
-                        className={`flex gap-3 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}
-                      >
-                        <span className={`font-semibold min-w-[2rem] ${
-                          isDarkMode ? 'text-blue-400' : 'text-blue-600'
-                        }`}>
-                          {paragraph.match(/^\d+/)?.[0]}.
-                        </span>
-                        <span className="leading-relaxed">
-                          {paragraph.replace(/^\d+\.\s*/, '')}
-                        </span>
-                      </div>
-                    );
-                  }
-                  
-                  // Handle bullet points (lines starting with - or *)
-                  if (paragraph.match(/^[-*]\s/)) {
-                    return (
-                      <div
-                        key={index}
-                        className={`flex gap-3 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}
-                      >
-                        <span className={`mt-2 w-2 h-2 rounded-full flex-shrink-0 ${
-                          isDarkMode ? 'bg-blue-400' : 'bg-blue-600'
-                        }`}></span>
-                        <span className="leading-relaxed">
-                          {paragraph.replace(/^[-*]\s*/, '')}
-                        </span>
-                      </div>
-                    );
-                  }
-                  
-                  // Handle inline code (text with backticks)
-                  const processInlineCode = (text: string) => {
-                    const parts = text.split(/(`[^`]+`)/);
-                    return parts.map((part, partIndex) => {
-                      if (part.startsWith('`') && part.endsWith('`')) {
-                        return (
-                          <code
-                            key={partIndex}
-                            className={`px-2 py-1 rounded text-sm font-mono ${
-                              isDarkMode 
-                                ? 'bg-gray-800 text-yellow-400 border border-gray-700' 
-                                : 'bg-gray-100 text-red-600 border border-gray-200'
-                            }`}
-                          >
-                            {part.slice(1, -1)}
-                          </code>
-                        );
-                      }
-                      return part;
-                    });
-                  };
-                  
-                  // Regular paragraphs
-                  return (
-                    <p
-                      key={index}
-                      className={`leading-relaxed text-lg ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}
-                    >
-                      {processInlineCode(paragraph)}
-                    </p>
-                  );
-                }).filter(Boolean)
+                <MarkdownRenderer
+                  content={note.summary}
+                  isDarkMode={isDarkMode}
+                  wrapperClassName="space-y-6"
+                  overrides={{
+                    paragraph: `leading-relaxed text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`,
+                    heading: headingClass,
+                  }}
+                />
               ) : (
                 <p className={`text-lg ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   No content available for this note.
