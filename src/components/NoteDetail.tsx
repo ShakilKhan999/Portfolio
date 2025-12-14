@@ -1,4 +1,5 @@
 import React from 'react'
+import MarkdownRenderer from './MarkdownRenderer'
 
 interface NoteDetailProps {
   note: any
@@ -34,67 +35,17 @@ export default function NoteDetail({ note, onClose, isDarkMode }: NoteDetailProp
           ) : null}
 
           <div className="md:col-span-2">
-            <div className="space-y-4 mb-4">
+            <div className="space-y-4 mb-4 max-h-[34rem] overflow-y-auto pr-2">
               {note.summary ? (
-                note.summary.slice(0, 800).split('\n').map((paragraph: string, index: number) => {
-                  if (!paragraph.trim()) return null;
-                  
-                  // Handle headers
-                  if (paragraph.startsWith('#')) {
-                    const level = paragraph.match(/^#+/)?.[0].length || 1;
-                    const text = paragraph.replace(/^#+\s*/, '');
-                    return (
-                      <h4
-                        key={index}
-                        className={`font-bold text-lg mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                      >
-                        {text}
-                      </h4>
-                    );
-                  }
-                  
-                  // Handle code blocks
-                  if (paragraph.match(/^\s{4,}/) || paragraph.startsWith('\t')) {
-                    return (
-                      <pre
-                        key={index}
-                        className={`p-3 rounded text-sm font-mono overflow-x-auto ${
-                          isDarkMode 
-                            ? 'bg-gray-800 text-green-400' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        <code>{paragraph.trim()}</code>
-                      </pre>
-                    );
-                  }
-                  
-                  // Handle numbered lists
-                  if (paragraph.match(/^\d+\.\s/)) {
-                    return (
-                      <div key={index} className="flex gap-2">
-                        <span className={`font-semibold ${
-                          isDarkMode ? 'text-blue-400' : 'text-blue-600'
-                        }`}>
-                          {paragraph.match(/^\d+/)?.[0]}.
-                        </span>
-                        <span className={isDarkMode ? 'text-gray-200' : 'text-gray-700'}>
-                          {paragraph.replace(/^\d+\.\s*/, '')}
-                        </span>
-                      </div>
-                    );
-                  }
-                  
-                  // Regular paragraphs
-                  return (
-                    <p
-                      key={index}
-                      className={`leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}
-                    >
-                      {paragraph}
-                    </p>
-                  );
-                }).filter(Boolean)
+                <MarkdownRenderer
+                  content={note.summary}
+                  isDarkMode={isDarkMode}
+                  wrapperClassName="space-y-4"
+                  overrides={{
+                    paragraph: `leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`,
+                    heading: (level: number) => `font-semibold ${level === 1 ? 'text-2xl mb-4 mt-4' : 'text-xl mb-3 mt-3'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`,
+                  }}
+                />
               ) : (
                 <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>No content available</p>
               )}

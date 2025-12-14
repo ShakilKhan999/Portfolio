@@ -10,6 +10,9 @@ import { auth, db } from '../config/firebase'
 import { loginSuccess, loginError, logout as logoutAction, setLoading as setAuthLoading } from '../store/slices/authSlice'
 import { ContactMessage } from '../store/slices/contactSlice'
 import { AboutMe, CaseStudy, Experience, Project, ResearchNote, Skill } from '../store/slices/portfolioSlice'
+import '@uiw/react-md-editor/markdown-editor.css'
+import '@uiw/react-markdown-preview/markdown.css'
+import MDEditor from '@uiw/react-md-editor'
 
 interface AdminDashboardProps {
   onClose: () => void
@@ -1094,7 +1097,26 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   </button>
                 </div>
                 <input className={inputClasses} placeholder="Title" value={noteForm.title} onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })} required />
-                <textarea className={`${inputClasses} min-h-[120px]`} placeholder="Summary / learnings" value={noteForm.summary} onChange={(e) => setNoteForm({ ...noteForm, summary: e.target.value })} required />
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium">Summary / learnings (Markdown)</label>
+                  <div
+                    className={`rounded-2xl border ${isDarkMode ? 'border-gray-800 bg-gray-900/80' : 'border-gray-200 bg-white/70'} overflow-hidden`}
+                    data-color-mode={isDarkMode ? 'dark' : 'light'}
+                  >
+                    <MDEditor
+                      value={noteForm.summary}
+                      onChange={(value) => setNoteForm({ ...noteForm, summary: value ?? '' })}
+                      preview="live"
+                      height={260}
+                      textareaProps={{
+                        placeholder: 'Use Markdown h1-h6, lists, tables, and fenced code to describe your work.',
+                        className: `${inputClasses} bg-transparent border-none shadow-none min-h-[180px]`
+                      }}
+                      className="bg-transparent"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400">Tip: the editor already shows a live preview, so you can see how the note will render before you save.</p>
+                </div>
                 <div className="grid md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="block text-xs font-medium">Image URL</label>

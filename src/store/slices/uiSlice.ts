@@ -7,7 +7,7 @@ export interface UIState {
 }
 
 const initialState: UIState = {
-  isDarkMode: false,
+  isDarkMode: true,
   isMobileMenuOpen: false,
   activeSection: 'home',
 }
